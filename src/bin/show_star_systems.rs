@@ -1,5 +1,5 @@
-extern crate tg_space_game;
 extern crate diesel;
+extern crate tg_space_game;
 
 use self::tg_space_game::*;
 use self::models::*;
@@ -9,7 +9,8 @@ fn main() {
     use tg_space_game::schema::star_systems::dsl::*;
 
     let connection = establish_connection();
-    let results = star_systems.limit(5)
+    let results = star_systems
+        .limit(5)
         .load::<StarSystem>(&connection)
         .expect("Error loading star systems");
 

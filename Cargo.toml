@@ -6,3 +6,4 @@ authors = ["golergka <golergka@gmail.com>"]
 [dependencies]
 diesel = { version = "1.0.0", features =["postgres"] }
 dotenv = "0.10"
+text_io = "0.1.7"
