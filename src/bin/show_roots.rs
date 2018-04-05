@@ -15,8 +15,8 @@ fn main() {
         .load::<StarSector>(&connection)
         .expect("Error loading sectors");
 
-    println!("Got {} root sectors", results.len());
+    println!("Got {} root sectors:", results.len());
     for s in results {
-        println!("Root sector with id {}", s.id);
+        println!("{}", s.id);
     }
 }
