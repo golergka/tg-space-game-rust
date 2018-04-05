@@ -1,14 +1,14 @@
 use super::schema::*;
 
 #[derive(Identifiable, Queryable, Associations)]
-#[belongs_to(StarSector, foreign_key = "secor")]
+#[belongs_to(StarSector, foreign_key = "sector")]
 pub struct StarSystem {
     pub id: i32,
     pub name: String,
     pub sector: i32,
 }
 
-#[derive(Identifiable, Queryable)]
+#[derive(Identifiable, Queryable, PartialEq)]
 pub struct StarSector {
     pub id: i32,
     pub parent: Option<i32>,
@@ -20,7 +20,8 @@ pub struct NewStarSector {
     pub parent: Option<i32>,
 }
 
-#[derive(Identifiable, Queryable)]
+#[derive(Identifiable, Queryable, Associations)]
+#[belongs_to(StarSector, foreign_key = "parent")]
 pub struct StarSectorFuture {
     pub id: i32,
     pub parent: Option<i32>,
