@@ -8,7 +8,8 @@ pub struct StarSystem {
     pub sector: i32,
 }
 
-#[derive(Identifiable, Queryable, PartialEq)]
+#[derive(Identifiable, Queryable, PartialEq, Associations)]
+#[belongs_to(StarSector, foreign_key = "parent")]
 pub struct StarSector {
     pub id: i32,
     pub parent: Option<i32>,

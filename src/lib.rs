@@ -85,3 +85,28 @@ pub fn fulfill_star_sector_future(conn: &PgConnection, future_id: i32) -> Result
 pub fn get_star_sector_children_futures(conn: &PgConnection, sector: &StarSector) -> Result<Vec<StarSectorFuture>, Error> {
     StarSectorFuture::belonging_to(sector).load(conn)
 }
+
+pub fn delete_sector_futures(conn: &PgConnection, sector_id: i32) -> Result<usize, Error> {
+    use schema::star_sector_futures::dsl::*;
+
+    diesel::delete(star_sector_futures.filter(parent.eq(sector_id)))
+        .execute(conn)
+}
+
+pub fn delete_sector(conn: &PgConnection, sector_id: i32) -> Result<(),Error> {
+    conn.transaction::<_, Error, _>(|| {
+        use schema::star_sectors::dsl::*;
+
+        delete_sector_futures(conn, sector_id)?;
+
+        let child_sectors: Vec<StarSector> = star_sectors.filter(parent.eq(sector_id)).for_update().load(conn)?;
+
+        for c in child_sectors {
+            try!(delete_sector(conn, c.id));
+        }
+
+        diesel::delete(star_sectors.filter(id.eq(sector_id))).execute(conn)?;
+
+        Ok(())
+    })
+}
