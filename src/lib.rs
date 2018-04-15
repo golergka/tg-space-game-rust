@@ -19,32 +19,21 @@ pub fn establish_connection() -> PgConnection {
 
 use self::models::*;
 
-pub fn create_star_sector(conn: &PgConnection, parent: Option<i32>) -> StarSector {
-    use schema::star_sectors;
-
-    let new_sector = NewStarSector { parent: parent };
-
-    diesel::insert_into(star_sectors::table)
-        .values(&new_sector)
-        .get_result(conn)
-        .expect("Error creating a star sector")
-}
-
 pub fn create_star_sector_future(
     conn: &PgConnection,
-    parent: Option<i32>,
-    stars: f32,
-    radius: f32,
+    parent_id: i32,
+    stars_i: f32,
+    radius_i: f32,
 ) -> StarSectorFuture {
-    use schema::star_sector_futures;
+    use schema::star_sector_futures::dsl::*;
 
     let new_future = NewStarSectorFuture {
-        parent: parent,
-        radius: radius,
-        stars: stars,
+        parent: parent_id,
+        radius: radius_i,
+        stars: stars_i,
     };
 
-    diesel::insert_into(star_sector_futures::table)
+    diesel::insert_into(star_sector_futures)
         .values(&new_future)
         .get_result(conn)
         .expect("Error creating a star sector future")
@@ -60,25 +49,53 @@ pub fn fulfill_star_sector_future(conn: &PgConnection, future_id: i32) -> Result
             .get_result::<StarSectorFuture>(conn)
             .expect(&format!("Unable to load star sector future {}", future_id));
 
-        let new_sector = create_star_sector(conn, future.parent);
+        generate_star_sector(conn, future.stars, future.radius, Some(future.parent))
+    })
+}
+
+pub fn generate_star_sector(conn: &PgConnection, stars: f32, radius: f32, parent_id: Option<i32>) -> Result<StarSector, Error> {
+    conn.transaction::<StarSector, Error, _>(|| {
+
+        use schema::star_sectors::dsl::*;
+
+        let new_sector = NewStarSector { parent: parent_id };
+
+        let result: StarSector = diesel::insert_into(star_sectors)
+            .values(&new_sector)
+            .get_result(conn)
+            .expect("Error creating a star sector");
 
         let sub_amount = 10;
-        let sub_stars = future.stars / (sub_amount as f32);
+        let sub_stars = stars / (sub_amount as f32);
 
         if sub_stars < 2.0 {
-            return Ok(new_sector); 
-            // TODO: create stars
+            use schema::star_systems::dsl::*;
+
+            let stars_amount = stars.round() as i32;
+            let new_stars = (0..stars_amount)
+                .map(|_| { NewStarSystem {
+                    name: "StarName".to_string(),
+                    sector: result.id
+                }})
+                .collect::<Vec<_>>();
+
+            diesel::insert_into(star_systems)
+                .values(&new_stars)
+                .execute(conn)
+                .expect("Couldn't create child systems!");
+
+            return Ok(result); 
         }
 
         use std::f32;
-        let sub_radius = future.radius / (sub_amount as f32).cbrt();
-        let parent_id = new_sector.id;
+        let sub_radius = radius / (sub_amount as f32).cbrt();
+        let parent_id = result.id;
 
         for _ in 0..sub_amount {
-            create_star_sector_future(conn, Some(parent_id), sub_stars, sub_radius);
+            create_star_sector_future(conn, parent_id, sub_stars, sub_radius);
         }
 
-        Ok(new_sector)
+        Ok(result)
     })
 }
 

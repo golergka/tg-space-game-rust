@@ -8,6 +8,13 @@ pub struct StarSystem {
     pub sector: i32,
 }
 
+#[derive(Insertable)]
+#[table_name = "star_systems"]
+pub struct NewStarSystem {
+    pub name: String,
+    pub sector: i32
+}
+
 #[derive(Identifiable, Queryable, PartialEq, Associations)]
 #[belongs_to(StarSector, foreign_key = "parent")]
 pub struct StarSector {
@@ -25,7 +32,7 @@ pub struct NewStarSector {
 #[belongs_to(StarSector, foreign_key = "parent")]
 pub struct StarSectorFuture {
     pub id: i32,
-    pub parent: Option<i32>,
+    pub parent: i32,
     pub radius: f32,
     pub stars: f32,
 }
@@ -33,7 +40,7 @@ pub struct StarSectorFuture {
 #[derive(Insertable)]
 #[table_name = "star_sector_futures"]
 pub struct NewStarSectorFuture {
-    pub parent: Option<i32>,
+    pub parent: i32,
     pub radius: f32,
     pub stars: f32,
 }
