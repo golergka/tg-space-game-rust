@@ -16,6 +16,9 @@ ALTER TABLE star_sectors
 ALTER TABLE star_sectors
     ADD CONSTRAINT galaxy_object_type
     CHECK (galaxy_object_type = 'sector');
+ALTER TABLE star_sectors
+    ADD CONSTRAINT galaxy_object_id_unique
+    UNIQUE (galaxy_object_id);
 
 -- Create entries for star_sectors
 ALTER TABLE galaxy_objects ADD COLUMN temp_sector_id integer;
@@ -96,58 +99,41 @@ ALTER TABLE star_systems DROP COLUMN id;
 
 -- star_sector_futures new relationship with parent
 ALTER TABLE star_sector_futures ADD COLUMN parent_id integer;
-ALTER TABLE star_sector_futures ADD COLUMN parent_type galaxy_object_type;
 ALTER TABLE star_sector_futures DROP CONSTRAINT star_sector_futures_parent_fkey;
 ALTER TABLE star_sector_futures
     ADD CONSTRAINT star_sector_futures_parent_fkey
-    FOREIGN KEY (parent_id, parent_type)
-    REFERENCES galaxy_objects (galaxy_object_id, galaxy_object_type);
-ALTER TABLE star_sector_futures
-    ADD CONSTRAINT parent_type
-    CHECK (parent_type = 'sector');
+    FOREIGN KEY (parent_id)
+    REFERENCES star_sectors (galaxy_object_id);
 UPDATE star_sector_futures
-    SET parent_id = galaxy_objects.galaxy_object_id,
-        parent_type = 'sector'
+    SET parent_id = galaxy_objects.galaxy_object_id
     FROM galaxy_objects
     WHERE star_sector_futures.parent = galaxy_objects.temp_sector_id;
 ALTER TABLE star_sector_futures ALTER COLUMN parent_id SET NOT NULL;
-ALTER TABLE star_sector_futures ALTER COLUMN parent_type SET NOT NULL;
 ALTER TABLE star_sector_futures DROP COLUMN parent;
 
 -- star_system new relationsip with parent
 ALTER TABLE star_systems ADD COLUMN sector_id integer;
-ALTER TABLE star_systems ADD COLUMN sector_type galaxy_object_type;
 ALTER TABLE star_systems DROP CONSTRAINT star_systems_sector_fkey;
 ALTER TABLE star_systems
     ADD CONSTRAINT star_systems_sector_fkey
-    FOREIGN KEY (sector_id, sector_type)
-    REFERENCES galaxy_objects (galaxy_object_id, galaxy_object_type);
-ALTER TABLE star_systems
-    ADD CONSTRAINT sector_type
-    CHECK (sector_type = 'sector');
+    FOREIGN KEY (sector_id)
+    REFERENCES star_sectors (galaxy_object_id);
 UPDATE star_systems
-    SET sector_id = galaxy_objects.galaxy_object_id,
-        sector_type = 'sector'
+    SET sector_id = galaxy_objects.galaxy_object_id
     FROM galaxy_objects
     WHERE star_systems.sector = galaxy_objects.temp_sector_id;
 ALTER TABLE star_systems ALTER COLUMN sector_id SET NOT NULL;
-ALTER TABLE star_systems ALTER COLUMN sector_type SET NOT NULL;
 ALTER TABLE star_systems DROP COLUMN sector;
 
 -- star_sector relationship to itself
 ALTER TABLE star_sectors ADD COLUMN parent_id integer;
-ALTER TABLE star_sectors ADD COLUMN parent_type galaxy_object_type;
 ALTER TABLE star_sectors DROP CONSTRAINT star_sectors_parent_fkey;
 ALTER TABLE star_sectors
     ADD CONSTRAINT star_sectors_parent_fkey
-    FOREIGN KEY (parent_id, parent_type)
-    REFERENCES galaxy_objects (galaxy_object_id, galaxy_object_type);
-ALTER TABLE star_sectors
-    ADD CONSTRAINT parent_type
-    CHECK (parent_type = 'sector');
+    FOREIGN KEY (parent_id)
+    REFERENCES star_sectors (galaxy_object_id);
 UPDATE star_sectors
-    SET parent_id = galaxy_objects.galaxy_object_id,
-        parent_type = 'sector'
+    SET parent_id = galaxy_objects.galaxy_object_id
     FROM galaxy_objects
     WHERE star_sectors.parent = galaxy_objects.temp_sector_id;
 ALTER TABLE star_sectors DROP COLUMN parent;

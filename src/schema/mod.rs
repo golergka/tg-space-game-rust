@@ -16,7 +16,6 @@ table! {
         galaxy_object_id -> Int4,
         galaxy_object_type -> GalaxyObjectTypeSql,
         parent_id -> Nullable<Int4>,
-        parent_type -> Nullable<GalaxyObjectTypeSql>,
     }
 }
 
@@ -29,7 +28,6 @@ table! {
         galaxy_object_id -> Int4,
         galaxy_object_type -> GalaxyObjectTypeSql,
         parent_id -> Int4,
-        parent_type -> GalaxyObjectTypeSql,
     }
 }
 
@@ -41,7 +39,6 @@ table! {
         galaxy_object_id -> Int4,
         galaxy_object_type -> GalaxyObjectTypeSql,
         sector_id -> Int4,
-        sector_type -> GalaxyObjectTypeSql,
     }
 }
 
