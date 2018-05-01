@@ -14,8 +14,8 @@ fn main() {
     println!("What would be expected amount of stars?");
     let stars: f32 = read!();
 
-    let mut sector = generate_star_sector(&connection, stars, radius, None)
-        .expect("Error creating star sector");
+    let mut sector =
+        generate_star_sector(&connection, stars, radius, None).expect("Error creating star sector");
     let mut children = get_star_sector_children_futures(&connection, &sector)
         .expect("Error getting children futures");
     let mut future = children.pop();
@@ -27,7 +27,7 @@ fn main() {
                 children = get_star_sector_children_futures(&connection, &sector)
                     .expect("Error getting children futures");
                 future = children.pop();
-            },
+            }
             None => break,
         }
     }

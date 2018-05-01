@@ -8,7 +8,7 @@ CREATE TABLE galaxy_objects (
 
 -- Add columns to star_sectors
 ALTER TABLE star_sectors ADD COLUMN galaxy_object_id integer;
-ALTER TABLE star_sectors ADD COLUMN galaxy_object_type galaxy_object_type;
+ALTER TABLE star_sectors ADD COLUMN galaxy_object_type galaxy_object_type DEFAULT 'sector';
 ALTER TABLE star_sectors
     ADD CONSTRAINT galaxy_object_fkey
     FOREIGN KEY (galaxy_object_id, galaxy_object_type)
@@ -37,7 +37,7 @@ ALTER TABLE star_sectors ALTER COLUMN galaxy_object_type SET NOT NULL;
 
 -- Add columns to star_systems
 ALTER TABLE star_systems ADD COLUMN galaxy_object_id integer;
-ALTER TABLE star_systems ADD COLUMN galaxy_object_type galaxy_object_type;
+ALTER TABLE star_systems ADD COLUMN galaxy_object_type galaxy_object_type DEFAULT 'system';
 ALTER TABLE star_systems
     ADD CONSTRAINT galaxy_object_fkey
     FOREIGN KEY (galaxy_object_id, galaxy_object_type)
@@ -63,7 +63,7 @@ ALTER TABLE star_systems ALTER COLUMN galaxy_object_type SET NOT NULL;
 
 -- Add columns to star_sector_futures
 ALTER TABLE star_sector_futures ADD COLUMN galaxy_object_id integer;
-ALTER TABLE star_sector_futures ADD COLUMN galaxy_object_type galaxy_object_type;
+ALTER TABLE star_sector_futures ADD COLUMN galaxy_object_type galaxy_object_type DEFAULT 'sector_future';
 ALTER TABLE star_sector_futures
     ADD CONSTRAINT galaxy_object_fkey
     FOREIGN KEY (galaxy_object_id, galaxy_object_type)

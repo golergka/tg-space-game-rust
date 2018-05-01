@@ -1,9 +1,9 @@
 extern crate diesel;
 extern crate tg_space_game;
 
-use self::tg_space_game::*;
-use self::models::*;
 use self::diesel::prelude::*;
+use self::models::*;
+use self::tg_space_game::*;
 
 fn main() {
     use tg_space_game::schema::star_systems::dsl::*;

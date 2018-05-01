@@ -1,5 +1,5 @@
-use diesel::pg::Pg;
 use diesel::deserialize::{self, FromSql};
+use diesel::pg::Pg;
 use diesel::serialize::{self, IsNull, Output, ToSql};
 use std::io::Write;
 
@@ -9,11 +9,10 @@ pub struct GalaxyObjectTypeSql;
 
 #[derive(Debug, PartialEq, FromSqlRow, AsExpression)]
 #[sql_type = "GalaxyObjectTypeSql"]
-pub enum GalaxyObjectType
-{
+pub enum GalaxyObjectType {
     System,
     Sector,
-    SectorFuture
+    SectorFuture,
 }
 
 impl ToSql<GalaxyObjectTypeSql, Pg> for GalaxyObjectType {
@@ -21,7 +20,7 @@ impl ToSql<GalaxyObjectTypeSql, Pg> for GalaxyObjectType {
         match *self {
             GalaxyObjectType::System => out.write_all(b"system")?,
             GalaxyObjectType::Sector => out.write_all(b"sector")?,
-            GalaxyObjectType::SectorFuture => out.write_all(b"sector_future")?
+            GalaxyObjectType::SectorFuture => out.write_all(b"sector_future")?,
         }
         Ok(IsNull::No)
     }

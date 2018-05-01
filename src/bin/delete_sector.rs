@@ -11,6 +11,6 @@ fn main() {
     let connection = establish_connection();
     match delete_sector(&connection, target) {
         Ok(_) => println!("Deleted sector {}", target),
-        Err(err) => println!("Error deleting sector {}, {:?}", target, err)
+        Err(err) => println!("Error deleting sector {}, {:?}", target, err),
     }
 }

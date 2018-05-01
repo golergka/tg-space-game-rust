@@ -2,14 +2,14 @@
 extern crate diesel;
 extern crate dotenv;
 
-use diesel::prelude::*;
 use diesel::pg::PgConnection;
+use diesel::prelude::*;
 use diesel::result::Error;
 use dotenv::dotenv;
 use std::env;
 
-pub mod schema;
 pub mod models;
+pub mod schema;
 
 pub fn establish_connection() -> PgConnection {
     dotenv().ok();
@@ -21,25 +21,28 @@ use self::models::*;
 
 pub fn create_star_sector_future(
     conn: &PgConnection,
-    parent_id: i32,
+    parent: i32,
     stars_i: f32,
     radius_i: f32,
 ) -> StarSectorFuture {
     use schema::star_sector_futures::dsl::*;
 
     let new_future = NewStarSectorFuture {
-        parent: parent_id,
+        parent_id: parent,
         radius: radius_i,
         stars: stars_i,
     };
 
     diesel::insert_into(star_sector_futures)
         .values(&new_future)
-        .get_result(conn)
+        .get_result::<StarSectorFuture>(conn)
         .expect("Error creating a star sector future")
 }
 
-pub fn fulfill_star_sector_future(conn: &PgConnection, future_id: i32) -> Result<StarSector, Error> {
+pub fn fulfill_star_sector_future(
+    conn: &PgConnection,
+    future_id: i32,
+) -> Result<StarSector, Error> {
     use schema::star_sector_futures::dsl::*;
 
     conn.transaction::<StarSector, Error, _>(|| {
@@ -49,16 +52,22 @@ pub fn fulfill_star_sector_future(conn: &PgConnection, future_id: i32) -> Result
             .get_result::<StarSectorFuture>(conn)
             .expect(&format!("Unable to load star sector future {}", future_id));
 
-        generate_star_sector(conn, future.stars, future.radius, Some(future.parent))
+        generate_star_sector(conn, future.stars, future.radius, Some(future.parent_id))
     })
 }
 
-pub fn generate_star_sector(conn: &PgConnection, stars: f32, radius: f32, parent_id: Option<i32>) -> Result<StarSector, Error> {
+pub fn generate_star_sector(
+    conn: &PgConnection,
+    stars: f32,
+    radius: f32,
+    parent: Option<i32>,
+) -> Result<StarSector, Error> {
     conn.transaction::<StarSector, Error, _>(|| {
-
         use schema::star_sectors::dsl::*;
 
-        let new_sector = NewStarSector { parent: parent_id };
+        let new_sector = NewStarSector {
+            parent_id: parent,
+        };
 
         let result: StarSector = diesel::insert_into(star_sectors)
             .values(&new_sector)
@@ -73,10 +82,10 @@ pub fn generate_star_sector(conn: &PgConnection, stars: f32, radius: f32, parent
 
             let stars_amount = stars.round() as i32;
             let new_stars = (0..stars_amount)
-                .map(|_| { NewStarSystem {
+                .map(|_| NewStarSystem {
                     name: "StarName".to_string(),
-                    sector: result.id
-                }})
+                    sector_id: result.id,
+                })
                 .collect::<Vec<_>>();
 
             diesel::insert_into(star_systems)
@@ -84,45 +93,49 @@ pub fn generate_star_sector(conn: &PgConnection, stars: f32, radius: f32, parent
                 .execute(conn)
                 .expect("Couldn't create child systems!");
 
-            return Ok(result); 
+            return Ok(result);
         }
 
         use std::f32;
         let sub_radius = radius / (sub_amount as f32).cbrt();
-        let parent_id = result.id;
 
         for _ in 0..sub_amount {
-            create_star_sector_future(conn, parent_id, sub_stars, sub_radius);
+            create_star_sector_future(conn, result.id, sub_stars, sub_radius);
         }
 
         Ok(result)
     })
 }
 
-pub fn get_star_sector_children_futures(conn: &PgConnection, sector: &StarSector) -> Result<Vec<StarSectorFuture>, Error> {
+pub fn get_star_sector_children_futures(
+    conn: &PgConnection,
+    sector: &StarSector,
+) -> Result<Vec<StarSectorFuture>, Error> {
     StarSectorFuture::belonging_to(sector).load(conn)
 }
 
 pub fn delete_sector_futures(conn: &PgConnection, sector_id: i32) -> Result<usize, Error> {
     use schema::star_sector_futures::dsl::*;
 
-    diesel::delete(star_sector_futures.filter(parent.eq(sector_id)))
-        .execute(conn)
+    diesel::delete(star_sector_futures.filter(parent_id.eq(sector_id))).execute(conn)
 }
 
-pub fn delete_sector(conn: &PgConnection, sector_id: i32) -> Result<(),Error> {
+pub fn delete_sector(conn: &PgConnection, sector_id: i32) -> Result<(), Error> {
     conn.transaction::<_, Error, _>(|| {
         use schema::star_sectors::dsl::*;
 
         delete_sector_futures(conn, sector_id)?;
 
-        let child_sectors: Vec<StarSector> = star_sectors.filter(parent.eq(sector_id)).for_update().load(conn)?;
+        let child_sectors: Vec<StarSector> = star_sectors
+            .filter(parent_id.eq(sector_id))
+            .for_update()
+            .load(conn)?;
 
         for c in child_sectors {
             try!(delete_sector(conn, c.id));
         }
 
-        diesel::delete(star_sectors.filter(id.eq(sector_id))).execute(conn)?;
+        diesel::delete(star_sectors.filter(galaxy_object_id.eq(sector_id))).execute(conn)?;
 
         Ok(())
     })

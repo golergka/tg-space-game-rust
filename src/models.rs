@@ -1,18 +1,10 @@
 use super::schema::*;
+use super::schema::types::*;
 
-#[derive(Identifiable, Queryable, Associations)]
-#[belongs_to(StarSector, foreign_key = "sector_id")]
-pub struct StarSystem {
+#[derive(Queryable)]
+pub struct GalaxyObject {
     pub id: i32,
-    pub name: String,
-    pub sector_id: i32,
-}
-
-#[derive(Insertable)]
-#[table_name = "star_systems"]
-pub struct NewStarSystem {
-    pub name: String,
-    pub sector_id: i32
+    pub obj_type: GalaxyObjectType
 }
 
 #[derive(Identifiable, Queryable, PartialEq, Associations)]
@@ -26,6 +18,21 @@ pub struct StarSector {
 #[table_name = "star_sectors"]
 pub struct NewStarSector {
     pub parent_id: Option<i32>,
+}
+
+#[derive(Identifiable, Queryable, Associations)]
+#[belongs_to(StarSector, foreign_key = "sector_id")]
+pub struct StarSystem {
+    pub id: i32,
+    pub name: String,
+    pub sector_id: i32,
+}
+
+#[derive(Insertable)]
+#[table_name = "star_systems"]
+pub struct NewStarSystem {
+    pub name: String,
+    pub sector_id: i32,
 }
 
 #[derive(Identifiable, Queryable, Associations)]

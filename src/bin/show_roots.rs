@@ -1,9 +1,9 @@
 extern crate diesel;
 extern crate tg_space_game;
 
-use self::tg_space_game::*;
-use self::models::*;
 use self::diesel::prelude::*;
+use self::models::*;
+use self::tg_space_game::*;
 
 fn main() {
     use tg_space_game::schema::star_sectors::dsl::*;
@@ -11,7 +11,7 @@ fn main() {
     let connection = establish_connection();
     let results = star_sectors
         .limit(100)
-        .filter(parent.is_null())
+        .filter(parent_id.is_null())
         .load::<StarSector>(&connection)
         .expect("Error loading sectors");
 
