@@ -1,0 +1,22 @@
+[package]
+name = "tg_space_game_tests"
+version = "0.1.0"
+authors = ["golergka <golergka@gmail.com>"]
+build = "build.rs"
+
+[build-dependencies]
+tg_space_game = { path = "../tg_space_game" }
+diesel = { version = "1.0.0", features =["postgres"] }
+diesel_migrations = "1.2.0"
+dotenv = "0.10"
+
+[dependencies]
+tg_space_game = { path = "../tg_space_game" }
+diesel = { version = "1.0.0", features =["postgres"] }
+diesel_migrations = "1.2.0"
+dotenv = "0.10"
+
+[[test]]
+name = "integration_tests"
+path = "tests/lib.rs"
+harness = true

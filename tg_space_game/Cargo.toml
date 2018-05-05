@@ -1,0 +1,10 @@
+[package]
+name = "tg_space_game"
+version = "0.1.0"
+authors = ["golergka <golergka@gmail.com>"]
+
+[dependencies]
+diesel = { version = "1.0.0", features =["postgres"] }
+diesel_migrations = "1.2.0"
+dotenv = "0.10"
+text_io = "0.1.7"

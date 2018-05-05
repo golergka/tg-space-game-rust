@@ -1,7 +1,10 @@
 #[macro_use]
 extern crate diesel;
+#[macro_use]
+extern crate diesel_migrations;
 extern crate dotenv;
 
+use diesel_migrations::RunMigrationsError;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::result::Error;
@@ -10,6 +13,12 @@ use std::env;
 
 pub mod models;
 pub mod schema;
+
+embed_migrations!();
+
+pub fn run_migrations(connection: &PgConnection, out: &mut std::io::Stdout) -> Result<(), RunMigrationsError> {
+    embedded_migrations::run_with_output(connection, out)
+}
 
 pub fn establish_connection() -> PgConnection {
     dotenv().ok();
@@ -65,9 +74,7 @@ pub fn generate_star_sector(
     conn.transaction::<StarSector, Error, _>(|| {
         use schema::star_sectors::dsl::*;
 
-        let new_sector = NewStarSector {
-            parent_id: parent,
-        };
+        let new_sector = NewStarSector { parent_id: parent };
 
         let result: StarSector = diesel::insert_into(star_sectors)
             .values(&new_sector)

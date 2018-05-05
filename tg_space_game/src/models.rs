@@ -1,10 +1,10 @@
-use super::schema::*;
 use super::schema::types::*;
+use super::schema::*;
 
 #[derive(Queryable)]
 pub struct GalaxyObject {
     pub id: i32,
-    pub obj_type: GalaxyObjectType
+    pub obj_type: GalaxyObjectType,
 }
 
 #[derive(Identifiable, Queryable, PartialEq, Associations)]
