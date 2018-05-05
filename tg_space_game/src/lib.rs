@@ -4,19 +4,24 @@ extern crate diesel;
 extern crate diesel_migrations;
 extern crate dotenv;
 
-use diesel_migrations::RunMigrationsError;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::result::Error;
+use diesel_migrations::RunMigrationsError;
 use dotenv::dotenv;
 use std::env;
 
 pub mod models;
 pub mod schema;
 
+use self::schema::types::GalaxyObjectType;
+
 embed_migrations!();
 
-pub fn run_migrations(connection: &PgConnection, out: &mut std::io::Stdout) -> Result<(), RunMigrationsError> {
+pub fn run_migrations(
+    connection: &PgConnection,
+    out: &mut std::io::Stdout,
+) -> Result<(), RunMigrationsError> {
     embedded_migrations::run_with_output(connection, out)
 }
 
@@ -65,6 +70,26 @@ pub fn fulfill_star_sector_future(
     })
 }
 
+fn create_star_sector(conn: &PgConnection, parent: Option<i32>) -> Result<StarSector, Error> {
+    conn.transaction::<StarSector, Error, _>(|| {
+        use schema::galaxy_objects::dsl::*;
+        use schema::star_sectors::dsl::*;
+
+        let galaxy_object: GalaxyObject = diesel::insert_into(galaxy_objects)
+            .values(&NewGalaxyObject {
+                galaxy_object_type: GalaxyObjectType::Sector,
+            })
+            .get_result(conn)?;
+
+        diesel::insert_into(star_sectors)
+            .values(&NewStarSector {
+                galaxy_object_id: galaxy_object.id,
+                parent_id: parent,
+            })
+            .get_result(conn)
+    })
+}
+
 pub fn generate_star_sector(
     conn: &PgConnection,
     stars: f32,
@@ -72,14 +97,7 @@ pub fn generate_star_sector(
     parent: Option<i32>,
 ) -> Result<StarSector, Error> {
     conn.transaction::<StarSector, Error, _>(|| {
-        use schema::star_sectors::dsl::*;
-
-        let new_sector = NewStarSector { parent_id: parent };
-
-        let result: StarSector = diesel::insert_into(star_sectors)
-            .values(&new_sector)
-            .get_result(conn)
-            .expect("Error creating a star sector");
+        let result = create_star_sector(conn, parent)?;
 
         let sub_amount = 10;
         let sub_stars = stars / (sub_amount as f32);
