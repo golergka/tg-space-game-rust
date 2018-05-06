@@ -5,6 +5,7 @@ extern crate tg_space_game;
 use self::diesel::*;
 use self::dotenv::dotenv;
 use std::env;
+use tg_space_game::models::*;
 
 fn connection() -> PgConnection {
     let database_url = database_url_from_env("PG_DATABASE_URL");
@@ -53,16 +54,21 @@ fn generate_star_sectors_creates_stars() {
     assert_eq!(systems.len(), star_amount);
 }
 
-#[test]
-fn generate_star_sectors_creates_futures() {
-    let connection = test_connection();
+fn generate_root_with_futures(connection: &PgConnection) -> Vec<StarSectorFuture> {
     let star_amount: f32 = 100f32; // More than 10 - threshold
 
     let sector = generate_star_sector(&connection, star_amount, 1f32, None)
         .expect("Error generating star sector");
 
-    let futures = get_star_sector_children_futures(&connection, &sector)
-        .expect("Error loading star sector futures");
+    get_star_sector_children_futures(&connection, &sector)
+        .expect("Error loading star sector futures")
+}
+
+#[test]
+fn generate_star_sectors_creates_futures() {
+    let connection = test_connection();
+
+    let futures = generate_root_with_futures(&connection);
 
     assert_eq!(futures.len(), 10); // Constant sub_amount
 }
@@ -71,12 +77,19 @@ fn generate_star_sectors_creates_futures() {
 fn fulfill_star_sector_future_finishes_without_errors() {
     let connection = test_connection();
     
-    let sector = generate_star_sector(&connection, 100f32, 1f32, None)
-        .expect("Error generating star sector");
+    let future = &generate_root_with_futures(&connection)[0];
 
-    let futures = get_star_sector_children_futures(&connection, &sector)
-        .expect("Error loading star sector futures");
-
-    fulfill_star_sector_future(&connection, futures[0].id)
+    fulfill_star_sector_future(&connection, future.id)
         .expect("Error fulfilling star sector future");
+}
+
+#[test]
+fn fulfill_star_sector_future_saves_galaxy_object_id() {
+    let connection = test_connection();
+
+    let future = &generate_root_with_futures(&connection)[0];
+    let sector = fulfill_star_sector_future(&connection, future.id)
+        .expect("Error fulfilling star sector future");
+
+    assert_eq!(future.id, sector.id);
 }
