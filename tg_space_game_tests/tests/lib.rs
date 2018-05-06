@@ -28,7 +28,27 @@ fn test_connection() -> PgConnection {
 use tg_space_game::*;
 
 #[test]
-fn generates_star_sector() {
+fn generate_star_sector_finishes_without_errors() {
     let connection = test_connection();
     generate_star_sector(&connection, 1f32, 1f32, None).unwrap();
+}
+
+#[test]
+fn generate_star_sectors_creates_stars() {
+    let connection = test_connection();
+    let star_amount: usize = 5; // Less than 10 - threshold
+
+    use tg_space_game::models::*;
+
+    let sector = generate_star_sector(&connection, star_amount as f32, 1f32, None)
+        .expect("Error generating star sector");
+
+    use tg_space_game::schema::star_systems::dsl::*;
+
+    let systems = star_systems
+        .filter(sector_id.eq(sector.id))
+        .load::<StarSystem>(&connection)
+        .expect("Error loading star systems");
+
+    assert_eq!(systems.len(), star_amount);
 }

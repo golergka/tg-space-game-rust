@@ -102,7 +102,7 @@ pub fn generate_star_sector(
         let sub_amount = 10;
         let sub_stars = stars / (sub_amount as f32);
 
-        if sub_stars < 2.0 {
+        if sub_stars < 10.0 {
 
             let stars_amount = stars.round() as i32;
 
