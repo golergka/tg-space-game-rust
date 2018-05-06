@@ -55,6 +55,7 @@ pub struct StarSectorFuture {
 #[derive(Insertable)]
 #[table_name = "star_sector_futures"]
 pub struct NewStarSectorFuture {
+    pub galaxy_object_id: i32,
     pub parent_id: i32,
     pub radius: f32,
     pub stars: f32,

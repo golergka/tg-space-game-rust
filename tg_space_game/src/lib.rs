@@ -39,17 +39,25 @@ fn create_star_sector_future(
     stars_i: f32,
     radius_i: f32,
 ) -> Result<StarSectorFuture, Error> {
-    use schema::star_sector_futures::dsl::*;
+    conn.transaction::<StarSectorFuture, Error, _>(|| {
+        use schema::galaxy_objects::dsl::*;
+        use schema::star_sector_futures::dsl::*;
 
-    let new_future = NewStarSectorFuture {
-        parent_id: parent,
-        radius: radius_i,
-        stars: stars_i,
-    };
+        let galaxy_object: GalaxyObject = diesel::insert_into(galaxy_objects)
+            .values(&NewGalaxyObject {
+                galaxy_object_type: GalaxyObjectType::SectorFuture,
+            })
+            .get_result(conn)?;
 
-    diesel::insert_into(star_sector_futures)
-        .values(&new_future)
-        .get_result::<StarSectorFuture>(conn)
+        diesel::insert_into(star_sector_futures)
+            .values(&NewStarSectorFuture {
+                galaxy_object_id: galaxy_object.id,
+                parent_id: parent,
+                radius: radius_i,
+                stars: stars_i,
+            })
+            .get_result::<StarSectorFuture>(conn)
+    })
 }
 
 pub fn fulfill_star_sector_future(
