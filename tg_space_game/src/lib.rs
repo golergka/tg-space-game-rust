@@ -103,20 +103,33 @@ pub fn generate_star_sector(
         let sub_stars = stars / (sub_amount as f32);
 
         if sub_stars < 2.0 {
-            use schema::star_systems::dsl::*;
 
             let stars_amount = stars.round() as i32;
-            let new_stars = (0..stars_amount)
-                .map(|_| NewStarSystem {
+
+            // Create galaxy objects for stars
+            let new_star_galaxy_objects = (0..stars_amount)
+                .map(|_| NewGalaxyObject {
+                    galaxy_object_type: GalaxyObjectType::System
+                })
+                .collect::<Vec<_>>();
+            use schema::galaxy_objects::dsl::*;
+            let star_galaxy_objects: Vec<GalaxyObject> = diesel::insert_into(galaxy_objects)
+                .values(&new_star_galaxy_objects)
+                .get_results(conn)?;
+
+            // Create stars themselves
+            let new_stars = star_galaxy_objects
+                .iter()
+                .map(|g: &GalaxyObject| NewStarSystem {
+                    galaxy_object_id: g.id,
                     name: "StarName".to_string(),
                     sector_id: result.id,
                 })
                 .collect::<Vec<_>>();
-
+            use schema::star_systems::dsl::*;
             diesel::insert_into(star_systems)
                 .values(&new_stars)
-                .execute(conn)
-                .expect("Couldn't create child systems!");
+                .execute(conn)?;
 
             return Ok(result);
         }
