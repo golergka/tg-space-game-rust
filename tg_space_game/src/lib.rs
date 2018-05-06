@@ -33,12 +33,12 @@ pub fn establish_connection() -> PgConnection {
 
 use self::models::*;
 
-pub fn create_star_sector_future(
+fn create_star_sector_future(
     conn: &PgConnection,
     parent: i32,
     stars_i: f32,
     radius_i: f32,
-) -> StarSectorFuture {
+) -> Result<StarSectorFuture, Error> {
     use schema::star_sector_futures::dsl::*;
 
     let new_future = NewStarSectorFuture {
@@ -50,7 +50,6 @@ pub fn create_star_sector_future(
     diesel::insert_into(star_sector_futures)
         .values(&new_future)
         .get_result::<StarSectorFuture>(conn)
-        .expect("Error creating a star sector future")
 }
 
 pub fn fulfill_star_sector_future(
@@ -103,13 +102,12 @@ pub fn generate_star_sector(
         let sub_stars = stars / (sub_amount as f32);
 
         if sub_stars < 10.0 {
-
             let stars_amount = stars.round() as i32;
 
             // Create galaxy objects for stars
             let new_star_galaxy_objects = (0..stars_amount)
                 .map(|_| NewGalaxyObject {
-                    galaxy_object_type: GalaxyObjectType::System
+                    galaxy_object_type: GalaxyObjectType::System,
                 })
                 .collect::<Vec<_>>();
             use schema::galaxy_objects::dsl::*;
@@ -138,7 +136,7 @@ pub fn generate_star_sector(
         let sub_radius = radius / (sub_amount as f32).cbrt();
 
         for _ in 0..sub_amount {
-            create_star_sector_future(conn, result.id, sub_stars, sub_radius);
+            create_star_sector_future(conn, result.id, sub_stars, sub_radius)?;
         }
 
         Ok(result)

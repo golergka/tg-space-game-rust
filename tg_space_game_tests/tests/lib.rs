@@ -52,3 +52,23 @@ fn generate_star_sectors_creates_stars() {
 
     assert_eq!(systems.len(), star_amount);
 }
+
+#[test]
+fn generate_star_sectors_creates_futures() {
+    let connection = test_connection();
+    let star_amount: f32 = 100f32; // More than 10 - threshold
+
+    use tg_space_game::models::*;
+
+    let sector = generate_star_sector(&connection, star_amount, 1f32, None)
+        .expect("Error generating star sector");
+
+    use tg_space_game::schema::star_sector_futures::dsl::*;
+
+    let futures = star_sector_futures
+        .filter(parent_id.eq(sector.id))
+        .load::<StarSectorFuture>(&connection)
+        .expect("Error loading star sector futures");
+
+    assert_eq!(futures.len(), 10); // Constant sub_amount
+}
