@@ -201,7 +201,7 @@ pub fn get_star_sector_children_futures(
     StarSectorFuture::belonging_to(sector).load(conn)
 }
 
-pub fn delete_sector_futures(conn: &PgConnection, sector_id: i32) -> Result<usize, Error> {
+fn delete_sector_futures(conn: &PgConnection, sector_id: i32) -> Result<usize, Error> {
     use schema::star_sector_futures::dsl::*;
 
     diesel::delete(star_sector_futures.filter(parent_id.eq(sector_id))).execute(conn)

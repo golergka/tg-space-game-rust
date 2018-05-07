@@ -93,3 +93,14 @@ fn fulfill_star_sector_future_saves_galaxy_object_id() {
 
     assert_eq!(future.id, sector.id);
 }
+
+#[test]
+fn delete_sector_with_stars_finishes_without_errors() {
+    let connection = test_connection();
+
+    let sector = generate_star_sector(&connection, 1f32, 1f32, None)
+        .expect("Error generating star sector");
+
+    delete_sector(&connection, sector.id)
+        .expect("Error deleting sector");
+}
