@@ -63,14 +63,15 @@ fn create_star_sector_future(
 fn update_galaxy_object_type(
     conn: &PgConnection,
     object_id: i32,
-    object_type: GalaxyObjectType
+    object_type: GalaxyObjectType,
 ) -> Result<(), Error> {
     use schema::galaxy_objects::dsl::*;
     match diesel::update(galaxy_objects.filter(galaxy_object_id.eq(object_id)))
         .set(galaxy_object_type.eq(object_type))
-        .execute(conn) {
+        .execute(conn)
+    {
         Ok(1) => Ok(()),
-        _ => Err(Error::NotFound)
+        _ => Err(Error::NotFound),
     }
 }
 
@@ -78,7 +79,6 @@ pub fn fulfill_star_sector_future(
     conn: &PgConnection,
     future_id: i32,
 ) -> Result<StarSector, Error> {
-
     conn.transaction::<StarSector, Error, _>(|| {
         use schema::star_sector_futures::dsl::*;
 
@@ -207,11 +207,17 @@ fn delete_sector_futures(conn: &PgConnection, sector_id: i32) -> Result<usize, E
     diesel::delete(star_sector_futures.filter(parent_id.eq(sector_id))).execute(conn)
 }
 
+fn delete_sector_systems(conn: &PgConnection, sector_id: i32) -> Result<usize, Error> {
+    use schema::star_systems::dsl::*;
+    diesel::delete(star_systems.filter(sector_id.eq(sector_id))).execute(conn)
+}
+
 pub fn delete_sector(conn: &PgConnection, sector_id: i32) -> Result<(), Error> {
     conn.transaction::<_, Error, _>(|| {
         use schema::star_sectors::dsl::*;
 
         delete_sector_futures(conn, sector_id)?;
+        delete_sector_systems(conn, sector_id)?;
 
         let child_sectors: Vec<StarSector> = star_sectors
             .filter(parent_id.eq(sector_id))

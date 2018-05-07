@@ -34,22 +34,27 @@ fn generate_star_sector_finishes_without_errors() {
     generate_star_sector(&connection, 1f32, 1f32, None).unwrap();
 }
 
+fn generate_root_with_5_stars(connection: &PgConnection) -> (StarSector, Vec<StarSystem>) {
+    use tg_space_game::models::*;
+    use tg_space_game::schema::star_systems::dsl::*;
+
+    let sector =
+        generate_star_sector(connection, 5f32, 1f32, None).expect("Error generating star sector");
+
+    let systems = star_systems
+        .filter(sector_id.eq(sector.id))
+        .load::<StarSystem>(connection)
+        .expect("Error loading star systems");
+
+    (sector, systems)
+}
+
 #[test]
 fn generate_star_sectors_creates_stars() {
     let connection = test_connection();
     let star_amount: usize = 5; // Less than 10 - threshold
 
-    use tg_space_game::models::*;
-
-    let sector = generate_star_sector(&connection, star_amount as f32, 1f32, None)
-        .expect("Error generating star sector");
-
-    use tg_space_game::schema::star_systems::dsl::*;
-
-    let systems = star_systems
-        .filter(sector_id.eq(sector.id))
-        .load::<StarSystem>(&connection)
-        .expect("Error loading star systems");
+    let (_, systems) = generate_root_with_5_stars(&connection);
 
     assert_eq!(systems.len(), star_amount);
 }
@@ -76,7 +81,7 @@ fn generate_star_sectors_creates_futures() {
 #[test]
 fn fulfill_star_sector_future_finishes_without_errors() {
     let connection = test_connection();
-    
+
     let future = &generate_root_with_futures(&connection)[0];
 
     fulfill_star_sector_future(&connection, future.id)
@@ -98,9 +103,27 @@ fn fulfill_star_sector_future_saves_galaxy_object_id() {
 fn delete_sector_with_stars_finishes_without_errors() {
     let connection = test_connection();
 
-    let sector = generate_star_sector(&connection, 1f32, 1f32, None)
-        .expect("Error generating star sector");
+    let (sector, _) = generate_root_with_5_stars(&connection);
 
-    delete_sector(&connection, sector.id)
-        .expect("Error deleting sector");
+    delete_sector(&connection, sector.id).expect("Error deleting sector");
+}
+
+#[test]
+fn delete_sector_doesnt_delete_other_stars() {
+    let connection = test_connection();
+
+    let (sector_to_delete, _) = generate_root_with_5_stars(&connection);
+    let (sector_to_stay, systems_to_stay) = generate_root_with_5_stars(&connection);
+
+    delete_sector(&connection, sector_to_delete.id).expect("Error deleting sector");
+
+    use tg_space_game::models::*;
+    use tg_space_game::schema::star_systems::dsl::*;
+
+    let systems_stayed = star_systems
+        .filter(sector_id.eq(sector_to_stay.id))
+        .load::<StarSystem>(&connection)
+        .expect("Error loading star systems");
+
+    assert_eq!(systems_to_stay.len(), systems_stayed.len());
 }
