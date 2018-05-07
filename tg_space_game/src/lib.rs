@@ -60,20 +60,52 @@ fn create_star_sector_future(
     })
 }
 
+fn update_galaxy_object_type(
+    conn: &PgConnection,
+    object_id: i32,
+    object_type: GalaxyObjectType
+) -> Result<(), Error> {
+    use schema::galaxy_objects::dsl::*;
+    match diesel::update(galaxy_objects.filter(galaxy_object_id.eq(object_id)))
+        .set(galaxy_object_type.eq(object_type))
+        .execute(conn) {
+        Ok(1) => Ok(()),
+        _ => Err(Error::NotFound)
+    }
+}
+
 pub fn fulfill_star_sector_future(
     conn: &PgConnection,
     future_id: i32,
 ) -> Result<StarSector, Error> {
-    use schema::star_sector_futures::dsl::*;
 
     conn.transaction::<StarSector, Error, _>(|| {
+        use schema::star_sector_futures::dsl::*;
+
+        // Find and delete old future
         let future = star_sector_futures
             .for_update()
             .find(future_id)
-            .get_result::<StarSectorFuture>(conn)
-            .expect(&format!("Unable to load star sector future {}", future_id));
+            .get_result::<StarSectorFuture>(conn)?;
 
-        generate_star_sector(conn, future.stars, future.radius, Some(future.parent_id))
+        diesel::delete(&future).execute(conn)?;
+
+        // Change galaxy object type
+        update_galaxy_object_type(conn, future_id, GalaxyObjectType::Sector)?;
+
+        // Create new sector
+        use schema::star_sectors::dsl::*;
+        let sector = diesel::insert_into(star_sectors)
+            .values(&NewStarSector {
+                galaxy_object_id: future_id,
+                parent_id: Some(future.parent_id),
+            })
+            .get_result(conn)?;
+
+        // Fill this new sector
+        fill_star_sector(conn, &sector, future.stars, future.radius)?;
+
+        Ok(sector)
     })
 }
 
@@ -97,15 +129,13 @@ fn create_star_sector(conn: &PgConnection, parent: Option<i32>) -> Result<StarSe
     })
 }
 
-pub fn generate_star_sector(
+fn fill_star_sector(
     conn: &PgConnection,
+    sector: &StarSector,
     stars: f32,
     radius: f32,
-    parent: Option<i32>,
-) -> Result<StarSector, Error> {
-    conn.transaction::<StarSector, Error, _>(|| {
-        let result = create_star_sector(conn, parent)?;
-
+) -> Result<(), Error> {
+    conn.transaction::<(), Error, _>(|| {
         let sub_amount = 10;
         let sub_stars = stars / (sub_amount as f32);
 
@@ -129,7 +159,7 @@ pub fn generate_star_sector(
                 .map(|g: &GalaxyObject| NewStarSystem {
                     galaxy_object_id: g.id,
                     name: "StarName".to_string(),
-                    sector_id: result.id,
+                    sector_id: sector.id,
                 })
                 .collect::<Vec<_>>();
             use schema::star_systems::dsl::*;
@@ -137,16 +167,29 @@ pub fn generate_star_sector(
                 .values(&new_stars)
                 .execute(conn)?;
 
-            return Ok(result);
+            return Ok(());
         }
 
         use std::f32;
         let sub_radius = radius / (sub_amount as f32).cbrt();
 
         for _ in 0..sub_amount {
-            create_star_sector_future(conn, result.id, sub_stars, sub_radius)?;
+            create_star_sector_future(conn, sector.id, sub_stars, sub_radius)?;
         }
 
+        Ok(())
+    })
+}
+
+pub fn generate_star_sector(
+    conn: &PgConnection,
+    stars: f32,
+    radius: f32,
+    parent: Option<i32>,
+) -> Result<StarSector, Error> {
+    conn.transaction::<StarSector, Error, _>(|| {
+        let result = create_star_sector(conn, parent)?;
+        fill_star_sector(conn, &result, stars, radius)?;
         Ok(result)
     })
 }
