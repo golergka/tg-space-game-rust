@@ -207,9 +207,9 @@ fn delete_sector_futures(conn: &PgConnection, sector_id: i32) -> Result<usize, E
     diesel::delete(star_sector_futures.filter(parent_id.eq(sector_id))).execute(conn)
 }
 
-fn delete_sector_systems(conn: &PgConnection, sector_id: i32) -> Result<usize, Error> {
+fn delete_sector_systems(conn: &PgConnection, sector: i32) -> Result<usize, Error> {
     use schema::star_systems::dsl::*;
-    diesel::delete(star_systems.filter(sector_id.eq(sector_id))).execute(conn)
+    diesel::delete(star_systems.filter(sector_id.eq(sector))).execute(conn)
 }
 
 pub fn delete_sector(conn: &PgConnection, sector_id: i32) -> Result<(), Error> {
