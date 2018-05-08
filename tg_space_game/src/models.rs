@@ -60,3 +60,21 @@ pub struct NewStarSectorFuture {
     pub radius: f32,
     pub stars: f32,
 }
+
+#[derive(Identifiable, Queryable)]
+pub struct StarLink {
+    pub id: i32,
+    pub a_id: i32,
+    pub a_obj_type: GalaxyObjectType,
+    pub b_id: i32,
+    pub b_obj_type: GalaxyObjectType,
+}
+
+#[derive(Insertable)]
+#[table_name = "star_links"]
+pub struct NewStarLink {
+    pub a_id: i32,
+    pub a_obj_type: GalaxyObjectType,
+    pub b_id: i32,
+    pub b_obj_type: GalaxyObjectType,
+}
