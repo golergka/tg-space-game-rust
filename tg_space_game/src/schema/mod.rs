@@ -36,9 +36,22 @@ table! {
     }
 }
 
+table! {
+    use diesel::sql_types::*;
+    use schema::types::*;
+    star_links (id) {
+        id -> Int4,
+        a_id -> Int4,
+        a_obj_type -> GalaxyObjectTypeSql,
+        b_id -> Int4,
+        b_obj_type -> GalaxyObjectTypeSql,
+    }
+}
+
 allow_tables_to_appear_in_same_query!(
     galaxy_objects,
     star_sector_futures,
     star_sectors,
     star_systems,
+    star_links,
 );
