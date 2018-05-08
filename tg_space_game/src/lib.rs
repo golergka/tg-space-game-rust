@@ -201,34 +201,56 @@ pub fn get_star_sector_children_futures(
     StarSectorFuture::belonging_to(sector).load(conn)
 }
 
+fn delete_galaxy_objects(conn: &PgConnection, objects: Vec<i32>) -> Result<usize, Error> {
+    use schema::galaxy_objects::dsl::*;
+
+    diesel::delete(galaxy_objects.filter(galaxy_object_id.eq_any(objects))).execute(conn)
+}
+
 fn delete_sector_futures(conn: &PgConnection, sector_id: i32) -> Result<usize, Error> {
     use schema::star_sector_futures::dsl::*;
 
-    diesel::delete(star_sector_futures.filter(parent_id.eq(sector_id))).execute(conn)
+    let deleted_ids = diesel::delete(star_sector_futures.filter(parent_id.eq(sector_id)))
+        .returning(galaxy_object_id)
+        .get_results(conn)?;
+
+    delete_galaxy_objects(conn, deleted_ids)
 }
 
 fn delete_sector_systems(conn: &PgConnection, sector: i32) -> Result<usize, Error> {
     use schema::star_systems::dsl::*;
-    diesel::delete(star_systems.filter(sector_id.eq(sector))).execute(conn)
+
+    let deleted_ids = diesel::delete(star_systems.filter(sector_id.eq(sector)))
+        .returning(galaxy_object_id)
+        .get_results(conn)?;
+
+    delete_galaxy_objects(conn, deleted_ids)
 }
 
 pub fn delete_sector(conn: &PgConnection, sector_id: i32) -> Result<(), Error> {
     conn.transaction::<_, Error, _>(|| {
         use schema::star_sectors::dsl::*;
 
+        // Delete child futures and systems
         delete_sector_futures(conn, sector_id)?;
         delete_sector_systems(conn, sector_id)?;
 
+        // Find child sectors
         let child_sectors: Vec<StarSector> = star_sectors
             .filter(parent_id.eq(sector_id))
             .for_update()
             .load(conn)?;
 
+        // Recursively delete child sectors;
         for c in child_sectors {
             try!(delete_sector(conn, c.id));
         }
 
+        // Delete sector
         diesel::delete(star_sectors.filter(galaxy_object_id.eq(sector_id))).execute(conn)?;
+
+        // Delete sector's galaxy object
+        delete_galaxy_objects(conn, vec![sector_id])?;
 
         Ok(())
     })
