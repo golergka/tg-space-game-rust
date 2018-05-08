@@ -127,3 +127,24 @@ fn delete_sector_doesnt_delete_other_stars() {
 
     assert_eq!(systems_to_stay.len(), systems_stayed.len());
 }
+
+#[test]
+fn delete_sector_conserves_galaxy_object_count() {
+    let connection = test_connection();
+
+    use tg_space_game::schema::galaxy_objects::dsl::*;
+    let prior_count = galaxy_objects
+        .count()
+        .get_result::<i64>(&connection)
+        .expect("Error getting prior count");
+
+    let (sector, _) = generate_root_with_5_stars(&connection);
+    delete_sector(&connection, sector.id).expect("Error deleting sector");
+
+    let posterior_count = galaxy_objects
+        .count()
+        .get_result(&connection)
+        .expect("Error getting posterior count");
+
+    assert_eq!(prior_count, posterior_count);
+}
