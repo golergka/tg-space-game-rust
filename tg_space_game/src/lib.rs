@@ -51,7 +51,7 @@ fn create_star_sector_future(
 
         diesel::insert_into(star_sector_futures)
             .values(&NewStarSectorFuture {
-                galaxy_object_id: galaxy_object.id,
+                id: galaxy_object.id,
                 parent_id: parent,
                 radius: radius_i,
                 stars: stars_i,
@@ -211,7 +211,7 @@ fn delete_sector_futures(conn: &PgConnection, sector_id: i32) -> Result<usize, E
     use schema::star_sector_futures::dsl::*;
 
     let deleted_ids = diesel::delete(star_sector_futures.filter(parent_id.eq(sector_id)))
-        .returning(galaxy_object_id)
+        .returning(id)
         .get_results(conn)?;
 
     delete_galaxy_objects(conn, deleted_ids)

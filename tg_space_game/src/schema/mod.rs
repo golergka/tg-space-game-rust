@@ -19,8 +19,8 @@ table! {
 
 table! {
     use diesel::sql_types::*;
-    star_sector_futures (galaxy_object_id) {
-        galaxy_object_id -> Int4,
+    star_sector_futures (id) {
+        id -> Int4,
         parent_id -> Int4,
         radius -> Float4,
         stars -> Float4,
