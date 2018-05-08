@@ -10,7 +10,7 @@ pub struct GalaxyObject {
 #[derive(Insertable)]
 #[table_name = "galaxy_objects"]
 pub struct NewGalaxyObject {
-    pub galaxy_object_type: GalaxyObjectType,
+    pub obj_type: GalaxyObjectType,
 }
 
 #[derive(Identifiable, Queryable, PartialEq, Associations)]

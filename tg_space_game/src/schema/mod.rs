@@ -5,7 +5,7 @@ table! {
     use schema::types::*;
     galaxy_objects (id) {
         id -> Int4,
-        galaxy_object_type -> GalaxyObjectTypeSql,
+        obj_type -> GalaxyObjectTypeSql,
     }
 }
 

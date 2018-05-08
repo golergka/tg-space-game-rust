@@ -45,7 +45,7 @@ fn create_star_sector_future(
 
         let galaxy_object: GalaxyObject = diesel::insert_into(galaxy_objects)
             .values(&NewGalaxyObject {
-                galaxy_object_type: GalaxyObjectType::SectorFuture,
+                obj_type: GalaxyObjectType::SectorFuture,
             })
             .get_result(conn)?;
 
@@ -67,7 +67,7 @@ fn update_galaxy_object_type(
 ) -> Result<(), Error> {
     use schema::galaxy_objects::dsl::*;
     match diesel::update(galaxy_objects.filter(id.eq(object_id)))
-        .set(galaxy_object_type.eq(object_type))
+        .set(obj_type.eq(object_type))
         .execute(conn)
     {
         Ok(1) => Ok(()),
@@ -116,7 +116,7 @@ fn create_star_sector(conn: &PgConnection, parent: Option<i32>) -> Result<StarSe
 
         let galaxy_object: GalaxyObject = diesel::insert_into(galaxy_objects)
             .values(&NewGalaxyObject {
-                galaxy_object_type: GalaxyObjectType::Sector,
+                obj_type: GalaxyObjectType::Sector,
             })
             .get_result(conn)?;
 
@@ -145,7 +145,7 @@ fn fill_star_sector(
             // Create galaxy objects for stars
             let new_star_galaxy_objects = (0..stars_amount)
                 .map(|_| NewGalaxyObject {
-                    galaxy_object_type: GalaxyObjectType::System,
+                    obj_type: GalaxyObjectType::System,
                 })
                 .collect::<Vec<_>>();
             use schema::galaxy_objects::dsl::*;
