@@ -97,7 +97,7 @@ pub fn fulfill_star_sector_future(
         use schema::star_sectors::dsl::*;
         let sector = diesel::insert_into(star_sectors)
             .values(&NewStarSector {
-                galaxy_object_id: future_id,
+                id: future_id,
                 parent_id: Some(future.parent_id),
             })
             .get_result(conn)?;
@@ -122,7 +122,7 @@ fn create_star_sector(conn: &PgConnection, parent: Option<i32>) -> Result<StarSe
 
         diesel::insert_into(star_sectors)
             .values(&NewStarSector {
-                galaxy_object_id: galaxy_object.id,
+                id: galaxy_object.id,
                 parent_id: parent,
             })
             .get_result(conn)
@@ -247,7 +247,7 @@ pub fn delete_sector(conn: &PgConnection, sector_id: i32) -> Result<(), Error> {
         }
 
         // Delete sector
-        diesel::delete(star_sectors.filter(galaxy_object_id.eq(sector_id))).execute(conn)?;
+        diesel::delete(star_sectors.filter(id.eq(sector_id))).execute(conn)?;
 
         // Delete sector's galaxy object
         delete_galaxy_objects(conn, vec![sector_id])?;

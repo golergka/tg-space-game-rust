@@ -11,8 +11,8 @@ table! {
 
 table! {
     use diesel::sql_types::*;
-    star_sectors (galaxy_object_id) {
-        galaxy_object_id -> Int4,
+    star_sectors (id) {
+        id -> Int4,
         parent_id -> Nullable<Int4>,
     }
 }
