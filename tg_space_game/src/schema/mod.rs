@@ -3,8 +3,8 @@ pub mod types;
 table! {
     use diesel::sql_types::*;
     use schema::types::*;
-    galaxy_objects (galaxy_object_id) {
-        galaxy_object_id -> Int4,
+    galaxy_objects (id) {
+        id -> Int4,
         galaxy_object_type -> GalaxyObjectTypeSql,
     }
 }

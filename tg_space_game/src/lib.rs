@@ -66,7 +66,7 @@ fn update_galaxy_object_type(
     object_type: GalaxyObjectType,
 ) -> Result<(), Error> {
     use schema::galaxy_objects::dsl::*;
-    match diesel::update(galaxy_objects.filter(galaxy_object_id.eq(object_id)))
+    match diesel::update(galaxy_objects.filter(id.eq(object_id)))
         .set(galaxy_object_type.eq(object_type))
         .execute(conn)
     {
@@ -204,7 +204,7 @@ pub fn get_star_sector_children_futures(
 fn delete_galaxy_objects(conn: &PgConnection, objects: Vec<i32>) -> Result<usize, Error> {
     use schema::galaxy_objects::dsl::*;
 
-    diesel::delete(galaxy_objects.filter(galaxy_object_id.eq_any(objects))).execute(conn)
+    diesel::delete(galaxy_objects.filter(id.eq_any(objects))).execute(conn)
 }
 
 fn delete_sector_futures(conn: &PgConnection, sector_id: i32) -> Result<usize, Error> {
