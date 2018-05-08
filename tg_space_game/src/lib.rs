@@ -157,7 +157,7 @@ fn fill_star_sector(
             let new_stars = star_galaxy_objects
                 .iter()
                 .map(|g: &GalaxyObject| NewStarSystem {
-                    galaxy_object_id: g.id,
+                    id: g.id,
                     name: "StarName".to_string(),
                     sector_id: sector.id,
                 })
@@ -221,7 +221,7 @@ fn delete_sector_systems(conn: &PgConnection, sector: i32) -> Result<usize, Erro
     use schema::star_systems::dsl::*;
 
     let deleted_ids = diesel::delete(star_systems.filter(sector_id.eq(sector)))
-        .returning(galaxy_object_id)
+        .returning(id)
         .get_results(conn)?;
 
     delete_galaxy_objects(conn, deleted_ids)

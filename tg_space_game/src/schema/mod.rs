@@ -29,8 +29,8 @@ table! {
 
 table! {
     use diesel::sql_types::*;
-    star_systems (galaxy_object_id) {
-        galaxy_object_id -> Int4,
+    star_systems (id) {
+        id -> Int4,
         name -> Varchar,
         sector_id -> Int4,
     }

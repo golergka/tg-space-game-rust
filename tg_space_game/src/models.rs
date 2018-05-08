@@ -38,7 +38,7 @@ pub struct StarSystem {
 #[derive(Insertable)]
 #[table_name = "star_systems"]
 pub struct NewStarSystem {
-    pub galaxy_object_id: i32,
+    pub id: i32,
     pub name: String,
     pub sector_id: i32,
 }
