@@ -181,6 +181,7 @@ fn generate_links(
 
 use std::iter::Iterator;
 
+/// Returns array of weights that are distributed exponentially
 fn exp_weights(amount: usize) -> Vec<u32> {
     use rand::distributions::{Exp, Distribution};
     let exp = Exp::new(1.0);
