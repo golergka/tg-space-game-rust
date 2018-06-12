@@ -134,50 +134,26 @@ use rand::distributions::{Distribution, Weighted, WeightedChoice};
 use rand::{thread_rng, Rng};
 use std::cmp;
 
-struct Link<T> {
-    side_a: T,
-    side_b: T
-}
-
-impl<T> Link<T> {
-    fn new(side_a: T, side_b: T) -> Link<T> {
-        Link {
-            side_a: side_a,
-            side_b: side_b
-        }
-    }
-}
-
-impl<T: PartialEq> PartialEq for Link<T> {
-    fn eq(&self, other: &Link<T>) -> bool {
-        (self.side_a.eq(&other.side_a) && self.side_b.eq(&other.side_b)) ||
-        (self.side_a.eq(&other.side_b) && self.side_b.eq(&other.side_a))
-    }
-}
-
-impl<T: Eq> Eq for Link<T> {}
-
-fn generate_links<'a, T>(
-    elements: &[Weighted<&'a T>],
+fn generate_links(
+    elements: &[Weighted<&GalaxyObject>],
     link_amount: usize,
     unique: bool,
-) -> Vec<Link<&'a T>> 
-    where T: Eq
+) -> Vec<NewStarLink> 
 {
 
     // Set up
-    let mut result: Vec<Link<&'a T>> = Vec::new();
+    let mut result: Vec<NewStarLink> = Vec::new();
     let mut rng = thread_rng();
 
     // Create a mutable (and shuffled) copy of elements
-    let mut shuffled: &mut [Weighted<&'a T>] = &mut [];
+    let mut shuffled: &mut [Weighted<&GalaxyObject>] = &mut [];
     shuffled.clone_from_slice(elements);
     rng.shuffle(shuffled);
 
     // Required links, so that graph is linked
     let min_links = shuffled.len() - 1;
     for i in 0..min_links {
-        result.push(Link::new(shuffled[i].item, shuffled[i + 1].item));
+        result.push(self::models::NewStarLink::new(&shuffled[i].item, &shuffled[i + 1].item));
     }
 
     // Extra links
@@ -189,12 +165,13 @@ fn generate_links<'a, T>(
     while links_left > 0 {
         let side_a = wc.sample(&mut rng);
         let side_b = wc.sample(&mut rng);
-        let link = Link::new(side_a, side_b);
-        if link.side_a != link.side_b &&
-            (!unique || !result.contains(&link)) {
+        if side_a != side_b {
+            let link = self::models::NewStarLink::new(&side_a, &side_b);
+            if !unique || !result.contains(&link) {
                 result.push(link);
                 links_left -= 1;
             }
+        }
     }
 
     result

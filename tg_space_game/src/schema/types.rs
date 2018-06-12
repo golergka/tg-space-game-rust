@@ -7,7 +7,7 @@ use std::io::Write;
 #[postgres(type_name = "galaxy_object_type")]
 pub struct GalaxyObjectTypeSql;
 
-#[derive(Debug, PartialEq, FromSqlRow, AsExpression)]
+#[derive(Debug, PartialEq, Eq, Hash, FromSqlRow, AsExpression, Copy, Clone)]
 #[sql_type = "GalaxyObjectTypeSql"]
 pub enum GalaxyObjectType {
     System,
