@@ -208,7 +208,12 @@ fn fill_star_sector(
                 })
                 .collect::<Vec<_>>();
 
-            let new_links = generate_links(&mut stars_weighed.as_mut_slice(), links as usize, true);
+            let new_links = generate_links(
+                &mut stars_weighed.as_mut_slice(), 
+                links as usize, 
+                true,
+                rand::thread_rng()
+            );
             use schema::star_links::dsl::*;
             diesel::insert_into(star_links)
                 .values(&new_links)

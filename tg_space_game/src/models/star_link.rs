@@ -86,22 +86,16 @@ impl Hash for NewStarLink {
 impl Eq for NewStarLink {}
 
 use rand::distributions::{Distribution, Weighted, WeightedChoice};
-use rand::{thread_rng, Rng};
+use rand::Rng;
 
-pub fn generate_links(
+pub fn generate_links<R: Rng>(
     mut elements: &mut [Weighted<GalaxyObject>],
     link_amount: usize,
     unique: bool,
+    mut rng: R,
 ) -> Vec<NewStarLink> 
 {
-
-    // Set up
     let mut result: Vec<NewStarLink> = Vec::new();
-    let mut rng = thread_rng();
-
-    // Create a mutable (and shuffled) copy of elements
-    // let mut shuffled: &mut [Weighted<GalaxyObject>] = &mut Vec::with_capacity(elements.len());
-    // shuffled.clone_from_slice(elements);
     rng.shuffle(elements);
 
     // Required links, so that graph is linked
