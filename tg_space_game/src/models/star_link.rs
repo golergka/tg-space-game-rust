@@ -44,7 +44,6 @@ impl NewStarLink {
             obj_type: self.b_obj_type
         }
     }
-
 }
 
 use std::cmp;
@@ -85,3 +84,51 @@ impl Hash for NewStarLink {
 }
 
 impl Eq for NewStarLink {}
+
+use rand::distributions::{Distribution, Weighted, WeightedChoice};
+use rand::{thread_rng, Rng};
+
+pub fn generate_links(
+    mut elements: &mut [Weighted<GalaxyObject>],
+    link_amount: usize,
+    unique: bool,
+) -> Vec<NewStarLink> 
+{
+
+    // Set up
+    let mut result: Vec<NewStarLink> = Vec::new();
+    let mut rng = thread_rng();
+
+    // Create a mutable (and shuffled) copy of elements
+    // let mut shuffled: &mut [Weighted<GalaxyObject>] = &mut Vec::with_capacity(elements.len());
+    // shuffled.clone_from_slice(elements);
+    rng.shuffle(elements);
+
+    // Required links, so that graph is linked
+    let min_links = elements.len() - 1;
+    for i in 0..min_links {
+        result.push(NewStarLink::new(&elements[i].item, &elements[i + 1].item));
+    }
+
+    // Extra links
+    let max_links = elements.len() * (elements.len() - 1) / 2;
+    let mut links_left = cmp::max(link_amount, max_links) - min_links;
+    let mut attempts = links_left * links_left;
+
+    let wc = WeightedChoice::new(&mut elements);
+
+    while links_left > 0 && attempts > 0 {
+        let side_a = wc.sample(&mut rng);
+        let side_b = wc.sample(&mut rng);
+        if side_a != side_b {
+            let link = NewStarLink::new(&side_a, &side_b);
+            if !unique || !result.contains(&link) {
+                result.push(link);
+                links_left -= 1;
+            }
+        }
+        attempts -= 1;
+    }
+
+    result
+}
