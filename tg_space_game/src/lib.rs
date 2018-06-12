@@ -135,7 +135,7 @@ use rand::{thread_rng, Rng};
 use std::cmp;
 
 fn generate_links(
-    elements: &[Weighted<GalaxyObject>],
+    mut elements: &mut [Weighted<GalaxyObject>],
     link_amount: usize,
     unique: bool,
 ) -> Vec<NewStarLink> 
@@ -146,23 +146,24 @@ fn generate_links(
     let mut rng = thread_rng();
 
     // Create a mutable (and shuffled) copy of elements
-    let mut shuffled: &mut [Weighted<GalaxyObject>] = &mut [];
-    shuffled.clone_from_slice(elements);
-    rng.shuffle(shuffled);
+    // let mut shuffled: &mut [Weighted<GalaxyObject>] = &mut Vec::with_capacity(elements.len());
+    // shuffled.clone_from_slice(elements);
+    rng.shuffle(elements);
 
     // Required links, so that graph is linked
-    let min_links = shuffled.len() - 1;
+    let min_links = elements.len() - 1;
     for i in 0..min_links {
-        result.push(self::models::NewStarLink::new(&shuffled[i].item, &shuffled[i + 1].item));
+        result.push(self::models::NewStarLink::new(&elements[i].item, &elements[i + 1].item));
     }
 
     // Extra links
     let max_links = elements.len() * (elements.len() - 1) / 2;
     let mut links_left = cmp::max(link_amount, max_links) - min_links;
+    let mut attempts = links_left * links_left;
 
-    let wc = WeightedChoice::new(&mut shuffled);
+    let wc = WeightedChoice::new(&mut elements);
 
-    while links_left > 0 {
+    while links_left > 0 && attempts > 0 {
         let side_a = wc.sample(&mut rng);
         let side_b = wc.sample(&mut rng);
         if side_a != side_b {
@@ -172,9 +173,28 @@ fn generate_links(
                 links_left -= 1;
             }
         }
+        attempts -= 1;
     }
 
     result
+}
+
+use std::iter::Iterator;
+
+fn exp_weights(amount: usize) -> Vec<u32> {
+    use rand::distributions::{Exp, Distribution};
+    let exp = Exp::new(1.0);
+    let weights_f: Vec<f64> = exp
+        .sample_iter(&mut rand::thread_rng())
+        .take(amount)
+        .collect();
+    let weight_sum = weights_f
+        .iter()
+        .fold(0.0, |acc, x| acc + x);
+    weights_f
+        .iter()
+        .map(|x| ((x / weight_sum) * ((<u32>::max_value()) / 2) as f64).floor() as u32)
+        .collect()
 }
 
 fn fill_star_sector(
@@ -220,28 +240,21 @@ fn fill_star_sector(
                 .get_results(conn)?;
 
             // Generate links between stars
-            use rand::distributions::{Exp, Distribution};
-            let exp = Exp::new(1.0);
-            let stars_weighed = stars.iter()
-                .map( |s: &StarSystem| {
-                    use std::num::FpCategory;
-                    use std::f64;
+            let weights = exp_weights(stars.len());
 
-                    let weight_f = exp.sample(&mut rand::thread_rng());
-                    let weight_unbound = (weight_f * (u32::max_value() as f64)).round();
-                    let weight = match weight_unbound.classify() {
-                        FpCategory::Normal | FpCategory::Zero | FpCategory::Subnormal => weight_unbound as u32,
-                        FpCategory::Nan => 0u32,
-                        FpCategory::Infinite => u32::max_value()
-                    };
+            let mut stars_weighed = stars
+                .iter()
+                .zip(weights)
+                .map(|pair: (&StarSystem, u32)| {
+                    let (star, weight) = pair;
                     Weighted::<GalaxyObject> {
-                        weight: weight as u32,
-                        item: GalaxyObject::from(s)
+                        weight: weight,
+                        item: GalaxyObject::from(star)
                     }
                 })
                 .collect::<Vec<_>>();
 
-            let new_links = generate_links(stars_weighed.as_slice(), links as usize, true);
+            let new_links = generate_links(&mut stars_weighed.as_mut_slice(), links as usize, true);
             use schema::star_links::dsl::*;
             diesel::insert_into(star_links)
                 .values(&new_links)
