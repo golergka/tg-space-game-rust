@@ -3,10 +3,37 @@ use super::schema::*;
 
 use std::hash::{Hash, Hasher};
 
-#[derive(Queryable, Hash, PartialEq, Eq)]
+#[derive(Queryable, Hash, PartialEq, Eq, Clone)]
 pub struct GalaxyObject {
     pub id: i32,
     pub obj_type: GalaxyObjectType,
+}
+
+impl<'a> From<&'a StarSector> for GalaxyObject {
+    fn from(sector: &StarSector) -> Self {
+        GalaxyObject {
+            id: sector.id,
+            obj_type: GalaxyObjectType::Sector
+        }
+    }
+}
+
+impl<'a> From<&'a StarSectorFuture> for GalaxyObject {
+    fn from(sector: &StarSectorFuture) -> Self {
+        GalaxyObject {
+            id: sector.id,
+            obj_type: GalaxyObjectType::SectorFuture
+        }
+    }
+}
+
+impl<'a> From<&'a StarSystem> for GalaxyObject {
+    fn from(sector: &StarSystem) -> Self {
+        GalaxyObject {
+            id: sector.id,
+            obj_type: GalaxyObjectType::System
+        }
+    }
 }
 
 #[derive(Insertable)]

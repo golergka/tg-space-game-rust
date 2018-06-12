@@ -135,7 +135,7 @@ use rand::{thread_rng, Rng};
 use std::cmp;
 
 fn generate_links(
-    elements: &[Weighted<&GalaxyObject>],
+    elements: &[Weighted<GalaxyObject>],
     link_amount: usize,
     unique: bool,
 ) -> Vec<NewStarLink> 
@@ -146,7 +146,7 @@ fn generate_links(
     let mut rng = thread_rng();
 
     // Create a mutable (and shuffled) copy of elements
-    let mut shuffled: &mut [Weighted<&GalaxyObject>] = &mut [];
+    let mut shuffled: &mut [Weighted<GalaxyObject>] = &mut [];
     shuffled.clone_from_slice(elements);
     rng.shuffle(shuffled);
 
@@ -207,8 +207,7 @@ fn fill_star_sector(
                 .get_results(conn)?;
 
             // Create stars themselves
-            let new_stars = star_galaxy_objects
-                .iter()
+            let new_stars = star_galaxy_objects.iter()
                 .map(|g: &GalaxyObject| NewStarSystem {
                     id: g.id,
                     name: "StarName".to_string(),
@@ -216,12 +215,37 @@ fn fill_star_sector(
                 })
                 .collect::<Vec<_>>();
             use schema::star_systems::dsl::*;
-            diesel::insert_into(star_systems)
+            let stars: Vec<StarSystem> = diesel::insert_into(star_systems)
                 .values(&new_stars)
-                .execute(conn)?;
+                .get_results(conn)?;
 
             // Generate links between stars
-            // TODO
+            use rand::distributions::{Exp, Distribution};
+            let exp = Exp::new(1.0);
+            let stars_weighed = stars.iter()
+                .map( |s: &StarSystem| {
+                    use std::num::FpCategory;
+                    use std::f64;
+
+                    let weight_f = exp.sample(&mut rand::thread_rng());
+                    let weight_unbound = (weight_f * (u32::max_value() as f64)).round();
+                    let weight = match weight_unbound.classify() {
+                        FpCategory::Normal | FpCategory::Zero | FpCategory::Subnormal => weight_unbound as u32,
+                        FpCategory::Nan => 0u32,
+                        FpCategory::Infinite => u32::max_value()
+                    };
+                    Weighted::<GalaxyObject> {
+                        weight: weight as u32,
+                        item: GalaxyObject::from(s)
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            let new_links = generate_links(stars_weighed.as_slice(), links as usize, true);
+            use schema::star_links::dsl::*;
+            diesel::insert_into(star_links)
+                .values(&new_links)
+                .execute(conn)?;
         }
         // Generate sub sector futures
         else {
