@@ -253,6 +253,18 @@ pub fn get_star_sector_children_futures(
     StarSectorFuture::belonging_to(sector).load(conn)
 }
 
+/* TODO
+fn delete_links_for_objects(conn: &PgConnection, objects: Vec<i32>) -> Result<usize, Error> {
+    use schema::star_links::dsl::*;
+
+    diesel::delete(
+            star_links.filter(a_id.eq()
+                .or_filter(b_id.eq())
+        )
+        .execute(conn)
+}
+*/
+
 fn delete_galaxy_objects(conn: &PgConnection, objects: Vec<i32>) -> Result<usize, Error> {
     use schema::galaxy_objects::dsl::*;
 
@@ -262,21 +274,25 @@ fn delete_galaxy_objects(conn: &PgConnection, objects: Vec<i32>) -> Result<usize
 fn delete_sector_futures(conn: &PgConnection, sector_id: i32) -> Result<usize, Error> {
     use schema::star_sector_futures::dsl::*;
 
-    let deleted_ids = diesel::delete(star_sector_futures.filter(parent_id.eq(sector_id)))
-        .returning(id)
-        .get_results(conn)?;
+    conn.transaction::<usize, Error, _>(|| {
+        let deleted_ids = diesel::delete(star_sector_futures.filter(parent_id.eq(sector_id)))
+            .returning(id)
+            .get_results(conn)?;
 
-    delete_galaxy_objects(conn, deleted_ids)
+        delete_galaxy_objects(conn, deleted_ids)
+    })
 }
 
 fn delete_sector_systems(conn: &PgConnection, sector: i32) -> Result<usize, Error> {
     use schema::star_systems::dsl::*;
 
-    let deleted_ids = diesel::delete(star_systems.filter(sector_id.eq(sector)))
-        .returning(id)
-        .get_results(conn)?;
+    conn.transaction::<usize, Error, _>(|| {
+        let deleted_ids = diesel::delete(star_systems.filter(sector_id.eq(sector)))
+            .returning(id)
+            .get_results(conn)?;
 
-    delete_galaxy_objects(conn, deleted_ids)
+        delete_galaxy_objects(conn, deleted_ids)
+    })
 }
 
 pub fn delete_sector(conn: &PgConnection, sector_id: i32) -> Result<(), Error> {
