@@ -9,7 +9,7 @@ pub struct StarLink {
     pub b_obj_type: GalaxyObjectType,
 }
 
-#[derive(Insertable)]
+#[derive(Insertable, Debug)]
 #[table_name = "star_links"]
 pub struct NewStarLink {
     pub a_id: i32,
@@ -125,4 +125,37 @@ pub fn generate_links<R: Rng>(
     }
 
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::rngs::mock::StepRng;
+
+    #[test]
+    fn generate_links_creates_required_links() {
+        let rng = StepRng::new(0, 1);
+        let item1 = GalaxyObject {
+            id: 1,
+            obj_type: GalaxyObjectType::Sector
+        };
+        let item2 = GalaxyObject {
+            id: 2,
+            obj_type: GalaxyObjectType::Sector
+        };
+
+        let mut elements: [Weighted<GalaxyObject>; 2] = [
+            Weighted::<GalaxyObject>{
+                weight: 1,
+                item: item1.clone()
+            },
+            Weighted::<GalaxyObject>{
+                weight: 1,
+                item: item2.clone()
+            }
+        ];
+        let result = generate_links(&mut elements, 0usize, false, rng);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], NewStarLink::new(&item1, &item2));
+    }
 }
