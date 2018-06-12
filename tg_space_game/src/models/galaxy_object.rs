@@ -32,3 +32,9 @@ impl<'a> From<&'a StarSystem> for GalaxyObject {
         }
     }
 }
+
+#[derive(Insertable)]
+#[table_name = "galaxy_objects"]
+pub struct NewGalaxyObject {
+    pub obj_type: GalaxyObjectType,
+}
