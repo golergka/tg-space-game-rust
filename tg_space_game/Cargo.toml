@@ -8,3 +8,4 @@ diesel = { version = "1.0.0", features =["postgres"] }
 diesel_migrations = "1.2.0"
 dotenv = "0.10"
 text_io = "0.1.7"
+rand = "0.5.1"

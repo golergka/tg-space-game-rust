@@ -3,6 +3,7 @@ extern crate diesel;
 #[macro_use]
 extern crate diesel_migrations;
 extern crate dotenv;
+extern crate rand;
 
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
@@ -129,6 +130,76 @@ fn create_star_sector(conn: &PgConnection, parent: Option<i32>) -> Result<StarSe
     })
 }
 
+use rand::distributions::{Distribution, Weighted, WeightedChoice};
+use rand::{thread_rng, Rng};
+use std::cmp;
+
+struct Link<T> {
+    side_a: T,
+    side_b: T
+}
+
+impl<T> Link<T> {
+    fn new(side_a: T, side_b: T) -> Link<T> {
+        Link {
+            side_a: side_a,
+            side_b: side_b
+        }
+    }
+}
+
+impl<T: PartialEq> PartialEq for Link<T> {
+    fn eq(&self, other: &Link<T>) -> bool {
+        (self.side_a.eq(&other.side_a) && self.side_b.eq(&other.side_b)) ||
+        (self.side_a.eq(&other.side_b) && self.side_b.eq(&other.side_a))
+    }
+}
+
+impl<T: Eq> Eq for Link<T> {}
+
+fn generate_links<'a, T>(
+    elements: &[Weighted<&'a T>],
+    link_amount: usize,
+    unique: bool,
+) -> Vec<Link<&'a T>> 
+    where T: Eq
+{
+
+    // Set up
+    let mut result: Vec<Link<&'a T>> = Vec::new();
+    let mut rng = thread_rng();
+
+    // Create a mutable (and shuffled) copy of elements
+    let mut shuffled: &mut [Weighted<&'a T>] = &mut [];
+    shuffled.clone_from_slice(elements);
+    rng.shuffle(shuffled);
+
+    // Required links, so that graph is linked
+    let min_links = shuffled.len() - 1;
+    for i in 0..min_links {
+        result.push(Link::new(shuffled[i].item, shuffled[i + 1].item));
+    }
+
+    // Extra links
+    let max_links = elements.len() * (elements.len() - 1) / 2;
+    let mut links_left = cmp::max(link_amount, max_links) - min_links;
+
+    let wc = WeightedChoice::new(&mut shuffled);
+
+    while links_left > 0 {
+        let side_a = wc.sample(&mut rng);
+        let side_b = wc.sample(&mut rng);
+        let link = Link::new(side_a, side_b);
+        if link.side_a != link.side_b &&
+            (!unique || !result.contains(&link)) {
+                result.push(link);
+                links_left -= 1;
+            }
+    }
+
+    result
+}
+
 fn fill_star_sector(
     conn: &PgConnection,
     sector: &StarSector,
@@ -136,9 +207,14 @@ fn fill_star_sector(
     radius: f32,
 ) -> Result<(), Error> {
     conn.transaction::<(), Error, _>(|| {
+        // Amount of sub-sectors
         let sub_amount = 10;
+        // Amount of stars in each of sub-sector
         let sub_stars = stars / (sub_amount as f32);
+        // Amount of links between stars inside this sector
+        let links = stars * 4f32;
 
+        // Generate sub stars
         if sub_stars < 10.0 {
             let stars_amount = stars.round() as i32;
 
@@ -167,14 +243,17 @@ fn fill_star_sector(
                 .values(&new_stars)
                 .execute(conn)?;
 
-            return Ok(());
+            // Generate links between stars
+            // TODO
         }
+        // Generate sub sector futures
+        else {
+            use std::f32;
+            let sub_radius = radius / (sub_amount as f32).cbrt();
 
-        use std::f32;
-        let sub_radius = radius / (sub_amount as f32).cbrt();
-
-        for _ in 0..sub_amount {
-            create_star_sector_future(conn, sector.id, sub_stars, sub_radius)?;
+            for _ in 0..sub_amount {
+                create_star_sector_future(conn, sector.id, sub_stars, sub_radius)?;
+            }
         }
 
         Ok(())
