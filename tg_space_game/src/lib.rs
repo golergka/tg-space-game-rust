@@ -15,6 +15,8 @@ use std::env;
 pub mod models;
 pub mod schema;
 
+mod tools;
+
 use self::schema::types::GalaxyObjectType;
 
 embed_migrations!();
@@ -134,20 +136,6 @@ use rand::distributions::Weighted;
 
 use std::iter::Iterator;
 
-/// Returns array of weights that are distributed exponentially
-fn exp_weights(amount: usize) -> Vec<u32> {
-    use rand::distributions::{Distribution, Exp};
-    let exp = Exp::new(1.0);
-    let weights_f: Vec<f64> = exp.sample_iter(&mut rand::thread_rng())
-        .take(amount)
-        .collect();
-    let weight_sum = weights_f.iter().fold(0.0, |acc, x| acc + x);
-    weights_f
-        .iter()
-        .map(|x| ((x / weight_sum) * ((<u32>::max_value()) / 2) as f64).floor() as u32)
-        .collect()
-}
-
 fn fill_star_sector(
     conn: &PgConnection,
     sector: &StarSector,
@@ -192,7 +180,7 @@ fn fill_star_sector(
                 .get_results(conn)?;
 
             // Generate links between stars
-            let weights = exp_weights(stars.len());
+            let weights = self::tools::exp_weights(stars.len());
 
             let mut stars_weighed = stars
                 .iter()
