@@ -1,32 +1,5 @@
 use super::*;
 
-fn create_star_sector_future(
-    conn: &PgConnection,
-    parent: i32,
-    stars_i: f32,
-    radius_i: f32,
-) -> Result<StarSectorFuture, Error> {
-    conn.transaction::<StarSectorFuture, Error, _>(|| {
-        use schema::galaxy_objects::dsl::*;
-        use schema::star_sector_futures::dsl::*;
-
-        let galaxy_object: GalaxyObject = diesel::insert_into(galaxy_objects)
-            .values(&NewGalaxyObject {
-                obj_type: GalaxyObjectType::SectorFuture,
-            })
-            .get_result(conn)?;
-
-        diesel::insert_into(star_sector_futures)
-            .values(&NewStarSectorFuture {
-                id: galaxy_object.id,
-                parent_id: parent,
-                radius: radius_i,
-                stars: stars_i,
-            })
-            .get_result::<StarSectorFuture>(conn)
-    })
-}
-
 fn update_galaxy_object_type(
     conn: &PgConnection,
     object_id: i32,
@@ -54,6 +27,8 @@ pub fn fulfill_star_sector_future(
             .for_update()
             .find(future_id)
             .get_result::<StarSectorFuture>(conn)?;
+
+        delete_links_for_objects(conn, vec![future_id])?;
 
         diesel::delete(&future).execute(conn)?;
 
@@ -104,7 +79,7 @@ fn fill_star_sector(
     conn: &PgConnection,
     sector: &StarSector,
     stars: f32,
-    radius: f32,
+    rad: f32,
 ) -> Result<(), Error> {
     conn.transaction::<(), Error, _>(|| {
         // Amount of sub-sectors
@@ -172,11 +147,60 @@ fn fill_star_sector(
         // Generate sub sector futures
         else {
             use std::f32;
-            let sub_radius = radius / (sub_amount as f32).cbrt();
+            let sub_radius = rad / (sub_amount as f32).cbrt();
 
-            for _ in 0..sub_amount {
-                create_star_sector_future(conn, sector.id, sub_stars, sub_radius)?;
-            }
+            // Create galaxy objects for futures
+            let new_star_galaxy_objects = (0..sub_amount)
+                .map(|_| NewGalaxyObject {
+                    obj_type: GalaxyObjectType::SectorFuture,
+                })
+                .collect::<Vec<_>>();
+            use schema::galaxy_objects::dsl::*;
+            let star_galaxy_objects: Vec<GalaxyObject> = diesel::insert_into(galaxy_objects)
+                .values(&new_star_galaxy_objects)
+                .get_results(conn)?;
+
+            // Create sub futures themselves
+            let new_futures = star_galaxy_objects
+                .iter()
+                .map(|g: &GalaxyObject| NewStarSectorFuture {
+                    id: g.id,
+                    parent_id: sector.id,
+                    radius: sub_radius,
+                    stars: sub_stars,
+                })
+                .collect::<Vec<_>>();
+            use schema::star_sector_futures::dsl::*;
+            let futures: Vec<StarSectorFuture> = diesel::insert_into(star_sector_futures)
+                .values(&new_futures)
+                .get_results(conn)?;
+
+            // Generate links between futures
+            let weights = self::tools::exp_weights(futures.len());
+
+            let mut future_weighted = futures
+                .iter()
+                .zip(weights)
+                .map(|pair: (&StarSectorFuture, u32)| {
+                    let (future, weight) = pair;
+                    Weighted::<GalaxyObject> {
+                        weight: weight,
+                        item: GalaxyObject::from(future)
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            let new_links = generate_links(
+                &mut future_weighted.as_mut_slice(),
+                links as usize,
+                false,
+                rand::thread_rng()
+            );
+
+            use schema::star_links::dsl::*;
+            diesel::insert_into(star_links)
+                .values(&new_links)
+                .execute(conn)?;
         }
 
         Ok(())

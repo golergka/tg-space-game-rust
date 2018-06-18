@@ -56,6 +56,22 @@ fn generate_star_sectors_creates_futures() {
 }
 
 #[test]
+fn generate_star_sector_creates_futures_can_be_found() {
+    let connection = test_connection();
+
+    let future_id = (&generate_root_with_futures(&connection).1[0]).id;
+
+    use tg_space_game::models::*;
+    use tg_space_game::schema::star_sector_futures::dsl::*;
+
+    star_sector_futures
+        .for_update()
+        .find(future_id)
+        .get_result::<StarSectorFuture>(&connection)
+        .expect("Error finding future by id");
+}
+
+#[test]
 fn fulfill_star_sector_future_finishes_without_errors() {
     let connection = test_connection();
 
