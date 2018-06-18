@@ -2,6 +2,7 @@ extern crate diesel;
 extern crate tg_space_game;
 
 use self::tg_space_game::*;
+use self::tg_space_game::galaxy_objects::*;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();

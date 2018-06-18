@@ -4,6 +4,7 @@ extern crate text_io;
 extern crate tg_space_game;
 
 use self::tg_space_game::*;
+use self::tg_space_game::galaxy_objects::*;
 
 fn main() {
     let connection = establish_connection();
