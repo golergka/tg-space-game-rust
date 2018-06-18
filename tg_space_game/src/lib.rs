@@ -136,15 +136,12 @@ use std::iter::Iterator;
 
 /// Returns array of weights that are distributed exponentially
 fn exp_weights(amount: usize) -> Vec<u32> {
-    use rand::distributions::{Exp, Distribution};
+    use rand::distributions::{Distribution, Exp};
     let exp = Exp::new(1.0);
-    let weights_f: Vec<f64> = exp
-        .sample_iter(&mut rand::thread_rng())
+    let weights_f: Vec<f64> = exp.sample_iter(&mut rand::thread_rng())
         .take(amount)
         .collect();
-    let weight_sum = weights_f
-        .iter()
-        .fold(0.0, |acc, x| acc + x);
+    let weight_sum = weights_f.iter().fold(0.0, |acc, x| acc + x);
     weights_f
         .iter()
         .map(|x| ((x / weight_sum) * ((<u32>::max_value()) / 2) as f64).floor() as u32)
@@ -181,7 +178,8 @@ fn fill_star_sector(
                 .get_results(conn)?;
 
             // Create stars themselves
-            let new_stars = star_galaxy_objects.iter()
+            let new_stars = star_galaxy_objects
+                .iter()
                 .map(|g: &GalaxyObject| NewStarSystem {
                     id: g.id,
                     name: "StarName".to_string(),
@@ -203,16 +201,16 @@ fn fill_star_sector(
                     let (star, weight) = pair;
                     Weighted::<GalaxyObject> {
                         weight: weight,
-                        item: GalaxyObject::from(star)
+                        item: GalaxyObject::from(star),
                     }
                 })
                 .collect::<Vec<_>>();
 
             let new_links = generate_links(
-                &mut stars_weighed.as_mut_slice(), 
-                links as usize, 
+                &mut stars_weighed.as_mut_slice(),
+                links as usize,
                 true,
-                rand::thread_rng()
+                rand::thread_rng(),
             );
             use schema::star_links::dsl::*;
             diesel::insert_into(star_links)
@@ -253,17 +251,15 @@ pub fn get_star_sector_children_futures(
     StarSectorFuture::belonging_to(sector).load(conn)
 }
 
-/* TODO
 fn delete_links_for_objects(conn: &PgConnection, objects: Vec<i32>) -> Result<usize, Error> {
     use schema::star_links::dsl::*;
 
     diesel::delete(
-            star_links.filter(a_id.eq()
-                .or_filter(b_id.eq())
-        )
-        .execute(conn)
+        star_links
+            .filter(a_id.eq_any(objects.to_vec()))
+            .or_filter(b_id.eq_any(objects.to_vec())),
+    ).execute(conn)
 }
-*/
 
 fn delete_galaxy_objects(conn: &PgConnection, objects: Vec<i32>) -> Result<usize, Error> {
     use schema::galaxy_objects::dsl::*;
@@ -275,11 +271,18 @@ fn delete_sector_futures(conn: &PgConnection, sector_id: i32) -> Result<usize, E
     use schema::star_sector_futures::dsl::*;
 
     conn.transaction::<usize, Error, _>(|| {
-        let deleted_ids = diesel::delete(star_sector_futures.filter(parent_id.eq(sector_id)))
-            .returning(id)
-            .get_results(conn)?;
+        let ids = star_sector_futures
+            .filter(parent_id.eq(sector_id))
+            .select(id)
+            .load(conn)?;
 
-        delete_galaxy_objects(conn, deleted_ids)
+        delete_links_for_objects(conn, ids.to_vec())?;
+
+        diesel::delete(star_sector_futures
+                .filter(id.eq_any(ids.to_vec())))
+            .execute(conn)?;
+
+        delete_galaxy_objects(conn, ids)
     })
 }
 
@@ -287,11 +290,18 @@ fn delete_sector_systems(conn: &PgConnection, sector: i32) -> Result<usize, Erro
     use schema::star_systems::dsl::*;
 
     conn.transaction::<usize, Error, _>(|| {
-        let deleted_ids = diesel::delete(star_systems.filter(sector_id.eq(sector)))
-            .returning(id)
-            .get_results(conn)?;
+        let ids = star_systems
+            .filter(sector_id.eq(sector))
+            .select(id)
+            .load(conn)?;
 
-        delete_galaxy_objects(conn, deleted_ids)
+        delete_links_for_objects(conn, ids.to_vec())?;
+
+        diesel::delete(star_systems
+                .filter(id.eq_any(ids.to_vec())))
+            .execute(conn)?;
+
+        delete_galaxy_objects(conn, ids)
     })
 }
 
@@ -313,6 +323,8 @@ pub fn delete_sector(conn: &PgConnection, sector_id: i32) -> Result<(), Error> {
         for c in child_sectors {
             try!(delete_sector(conn, c.id));
         }
+
+        delete_links_for_objects(conn, vec![sector_id])?;
 
         // Delete sector
         diesel::delete(star_sectors.filter(id.eq(sector_id))).execute(conn)?;
