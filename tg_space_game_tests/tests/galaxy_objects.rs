@@ -8,13 +8,17 @@ fn generate_star_sector_finishes_without_errors() {
     generate_star_sector(&connection, 1f32, 1f32, None).unwrap();
 }
 
-fn generate_root_with_5_stars(connection: &PgConnection) -> (StarSector, Vec<StarSystem>) {
+fn generate_root(connection: &PgConnection, stars: f32) -> StarSector {
+
+    generate_star_sector(connection, stars, 1f32, None)
+        .expect("Error generating star sector")
+}
+
+fn generate_root_with_stars(connection: &PgConnection) -> (StarSector, Vec<StarSystem>) {
+    let sector = generate_root(connection, 5f32);
+
     use tg_space_game::models::*;
     use tg_space_game::schema::star_systems::dsl::*;
-
-    let sector =
-        generate_star_sector(connection, 5f32, 1f32, None).expect("Error generating star sector");
-
     let systems = star_systems
         .filter(sector_id.eq(sector.id))
         .load::<StarSystem>(connection)
@@ -28,26 +32,25 @@ fn generate_star_sectors_creates_stars() {
     let connection = test_connection();
     let star_amount: usize = 5; // Less than 10 - threshold
 
-    let (_, systems) = generate_root_with_5_stars(&connection);
+    let (_, systems) = generate_root_with_stars(&connection);
 
     assert_eq!(systems.len(), star_amount);
 }
 
-fn generate_root_with_futures(connection: &PgConnection) -> Vec<StarSectorFuture> {
-    let star_amount: f32 = 100f32; // More than 10 - threshold
+fn generate_root_with_futures(connection: &PgConnection) -> (StarSector, Vec<StarSectorFuture>) {
+    let sector = generate_root(&connection, 200f32);
 
-    let sector = generate_star_sector(&connection, star_amount, 1f32, None)
-        .expect("Error generating star sector");
+    let futures = get_star_sector_children_futures(&connection, &sector)
+        .expect("Error loading star sector futures");
 
-    get_star_sector_children_futures(&connection, &sector)
-        .expect("Error loading star sector futures")
+    (sector, futures)
 }
 
 #[test]
 fn generate_star_sectors_creates_futures() {
     let connection = test_connection();
 
-    let futures = generate_root_with_futures(&connection);
+    let (_, futures) = generate_root_with_futures(&connection);
 
     assert_eq!(futures.len(), 10); // Constant sub_amount
 }
@@ -56,7 +59,7 @@ fn generate_star_sectors_creates_futures() {
 fn fulfill_star_sector_future_finishes_without_errors() {
     let connection = test_connection();
 
-    let future = &generate_root_with_futures(&connection)[0];
+    let future = &generate_root_with_futures(&connection).1[0];
 
     fulfill_star_sector_future(&connection, future.id)
         .expect("Error fulfilling star sector future");
@@ -66,7 +69,7 @@ fn fulfill_star_sector_future_finishes_without_errors() {
 fn fulfill_star_sector_future_saves_galaxy_object_id() {
     let connection = test_connection();
 
-    let future = &generate_root_with_futures(&connection)[0];
+    let future = &generate_root_with_futures(&connection).1[0];
     let sector = fulfill_star_sector_future(&connection, future.id)
         .expect("Error fulfilling star sector future");
 
@@ -77,7 +80,7 @@ fn fulfill_star_sector_future_saves_galaxy_object_id() {
 fn delete_sector_with_stars_finishes_without_errors() {
     let connection = test_connection();
 
-    let (sector, _) = generate_root_with_5_stars(&connection);
+    let (sector, _) = generate_root_with_stars(&connection);
 
     delete_sector(&connection, sector.id).expect("Error deleting sector");
 }
@@ -86,8 +89,8 @@ fn delete_sector_with_stars_finishes_without_errors() {
 fn delete_sector_doesnt_delete_other_stars() {
     let connection = test_connection();
 
-    let (sector_to_delete, _) = generate_root_with_5_stars(&connection);
-    let (sector_to_stay, systems_to_stay) = generate_root_with_5_stars(&connection);
+    let (sector_to_delete, _) = generate_root_with_stars(&connection);
+    let (sector_to_stay, systems_to_stay) = generate_root_with_stars(&connection);
 
     delete_sector(&connection, sector_to_delete.id).expect("Error deleting sector");
 
@@ -112,7 +115,7 @@ fn delete_sector_conserves_galaxy_object_count() {
         .get_result::<i64>(&connection)
         .expect("Error getting prior count");
 
-    let (sector, _) = generate_root_with_5_stars(&connection);
+    let (sector, _) = generate_root_with_stars(&connection);
     delete_sector(&connection, sector.id).expect("Error deleting sector");
 
     let posterior_count = galaxy_objects
@@ -124,9 +127,23 @@ fn delete_sector_conserves_galaxy_object_count() {
 }
 
 #[test]
-fn generate_sector_creates_minimum_link_amount() {
+fn generate_sector_with_stars_creates_minimum_link_amount() {
     let connection = test_connection();
-    let (_, _) = generate_root_with_5_stars(&connection);
+    let (_, _) = generate_root_with_stars(&connection);
+
+    use tg_space_game::schema::star_links::dsl::*;
+    let link_count = star_links
+        .count()
+        .get_result::<i64>(&connection)
+        .expect("Error getting link count");
+
+    assert!(link_count >= 4i64);
+}
+
+#[test]
+fn generate_sector_with_futures_creates_minimum_link_amount() {
+    let connection = test_connection();
+    let (_, _) = generate_root_with_futures(&connection);
 
     use tg_space_game::schema::star_links::dsl::*;
     let link_count = star_links
@@ -140,7 +157,7 @@ fn generate_sector_creates_minimum_link_amount() {
 #[test]
 fn generate_delete_sector_conserves_link_count() {
     let connection = test_connection();
-    let (_, _) = generate_root_with_5_stars(&connection);
+    let (_, _) = generate_root_with_stars(&connection);
 
     use tg_space_game::schema::star_links::dsl::*;
     let prior_count = star_links
@@ -148,7 +165,7 @@ fn generate_delete_sector_conserves_link_count() {
         .get_result::<i64>(&connection)
         .expect("Error getting prior count");
 
-    let (sector, _) = generate_root_with_5_stars(&connection);
+    let (sector, _) = generate_root_with_stars(&connection);
     delete_sector(&connection, sector.id).expect("Error deleting sector");
 
     let posterior_count = star_links
