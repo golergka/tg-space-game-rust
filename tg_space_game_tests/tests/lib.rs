@@ -148,3 +148,39 @@ fn delete_sector_conserves_galaxy_object_count() {
 
     assert_eq!(prior_count, posterior_count);
 }
+
+#[test]
+fn generate_sector_creates_minimum_link_amount() {
+    let connection = test_connection();
+    let (_, _) = generate_root_with_5_stars(&connection);
+
+    use tg_space_game::schema::star_links::dsl::*;
+    let link_count = star_links
+        .count()
+        .get_result::<i64>(&connection)
+        .expect("Error getting link count");
+
+    assert!(link_count >= 4i64);
+}
+
+#[test]
+fn generate_delete_sector_conserves_link_count() {
+    let connection = test_connection();
+    let (_, _) = generate_root_with_5_stars(&connection);
+
+    use tg_space_game::schema::star_links::dsl::*;
+    let prior_count = star_links
+        .count()
+        .get_result::<i64>(&connection)
+        .expect("Error getting prior count");
+
+    let (sector, _) = generate_root_with_5_stars(&connection);
+    delete_sector(&connection, sector.id).expect("Error deleting sector");
+
+    let posterior_count = star_links
+        .count()
+        .get_result(&connection)
+        .expect("Error getting posterior count");
+
+    assert_eq!(prior_count, posterior_count);
+}
