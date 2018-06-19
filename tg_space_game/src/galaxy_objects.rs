@@ -89,21 +89,31 @@ fn fill_star_sector(
         // Amount of links between stars inside this sector
         let links = stars * 4f32;
 
+        let create_stars = sub_stars < 10.0;
+
+        let child_amount = if create_stars {
+            stars.round() as i32
+        } else {
+            sub_amount
+        };
+
+        let new_star_galaxy_objects = (0..child_amount)
+            .map(|_| NewGalaxyObject {
+                obj_type: if create_stars {
+                        GalaxyObjectType::System 
+                    } else {
+                        GalaxyObjectType::SectorFuture
+                    }
+            })
+            .collect::<Vec<_>>();
+
+        use schema::galaxy_objects::dsl::*;
+        let star_galaxy_objects: Vec<GalaxyObject> = diesel::insert_into(galaxy_objects)
+            .values(&new_star_galaxy_objects)
+            .get_results(conn)?;
+
         // Generate sub stars
-        if sub_stars < 10.0 {
-            let stars_amount = stars.round() as i32;
-
-            // Create galaxy objects for stars
-            let new_star_galaxy_objects = (0..stars_amount)
-                .map(|_| NewGalaxyObject {
-                    obj_type: GalaxyObjectType::System,
-                })
-                .collect::<Vec<_>>();
-            use schema::galaxy_objects::dsl::*;
-            let star_galaxy_objects: Vec<GalaxyObject> = diesel::insert_into(galaxy_objects)
-                .values(&new_star_galaxy_objects)
-                .get_results(conn)?;
-
+        if create_stars {
             // Create stars themselves
             let new_stars = star_galaxy_objects
                 .iter()
@@ -148,17 +158,6 @@ fn fill_star_sector(
         else {
             use std::f32;
             let sub_radius = rad / (sub_amount as f32).cbrt();
-
-            // Create galaxy objects for futures
-            let new_star_galaxy_objects = (0..sub_amount)
-                .map(|_| NewGalaxyObject {
-                    obj_type: GalaxyObjectType::SectorFuture,
-                })
-                .collect::<Vec<_>>();
-            use schema::galaxy_objects::dsl::*;
-            let star_galaxy_objects: Vec<GalaxyObject> = diesel::insert_into(galaxy_objects)
-                .values(&new_star_galaxy_objects)
-                .get_results(conn)?;
 
             // Create sub futures themselves
             let new_futures = star_galaxy_objects
