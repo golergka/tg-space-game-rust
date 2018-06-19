@@ -170,6 +170,45 @@ fn generate_sector_with_futures_creates_minimum_link_amount() {
     assert!(link_count >= 4i64);
 }
 
+fn links_repeat(l1: &StarLink, l2: &StarLink) -> bool {
+    (l1.id != l2.id) && (
+        (l1.a_id == l2.a_id && l1.b_id == l2.b_id) ||
+        (l1.a_id == l2.b_id && l1.b_id == l2.a_id)
+    )
+}
+
+#[test]
+fn generate_sector_with_stars_creates_unique_links() {
+    let connection = test_connection();
+    let galaxy_objects = generate_root_with_stars(&connection)
+        .1
+        .iter()
+        .map(GalaxyObject::from)
+        .collect();
+    let links = get_links_for_objects(&connection, galaxy_objects)
+        .expect("Error getting links for the stars");
+
+    for (l1, l2) in links.iter().zip(links.iter()) {
+        assert!(!links_repeat(l1, l2));
+    }
+}
+
+#[test]
+fn generate_sector_with_futures_creates_non_unique_links() {
+    let connection = test_connection();
+    let galaxy_objects = generate_root_with_stars(&connection)
+        .1
+        .iter()
+        .map(GalaxyObject::from)
+        .collect();
+    let links = get_links_for_objects(&connection, galaxy_objects)
+        .expect("Error getting links for the stars");
+
+    let mut link_pairs = links.iter().zip(links.iter());
+
+    assert!(link_pairs.any(|(l1, l2)| links_repeat(l1, l2)));
+}
+
 #[test]
 fn generate_delete_sector_conserves_link_count() {
     let connection = test_connection();
@@ -193,11 +232,11 @@ fn generate_delete_sector_conserves_link_count() {
 }
 
 #[test]
-fn get_links_for_objects_returns_generated_links() {
+fn get_links_for_object_ids_returns_generated_links() {
     let connection = test_connection();
     let star = &generate_root_with_stars(&connection).1[0];
 
-    &get_links_for_objects(&connection, vec![star.id])
+    &get_links_for_object_ids(&connection, vec![star.id])
         .expect("Error getting links for the star")[0];
 }
 
@@ -207,7 +246,7 @@ fn generated_links_have_their_star_as_destination() {
     let stars = generate_root_with_stars(&connection).1;
 
     for s in stars {
-        let links = get_links_for_objects(&connection, vec![s.id])
+        let links = get_links_for_object_ids(&connection, vec![s.id])
             .expect("Error getting links for the star");
         for l in links {
             assert!(l.a_id == s.id || l.b_id == s.id);
@@ -221,7 +260,7 @@ fn fulfill_star_sector_future_delegates_links() {
 
     let future_id = generate_root_with_futures(&connection).1[0].id;
 
-    let links_old = &get_links_for_objects(&connection, vec![future_id])
+    let links_old = &get_links_for_object_ids(&connection, vec![future_id])
         .expect("Error getting links for the future");
 
     fulfill_star_sector_future(&connection, future_id)

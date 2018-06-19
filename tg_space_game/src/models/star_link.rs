@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Identifiable, Queryable)]
+#[derive(Identifiable, Queryable, Debug)]
 pub struct StarLink {
     pub id: i32,
     pub a_id: i32,
