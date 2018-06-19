@@ -191,3 +191,42 @@ fn generate_delete_sector_conserves_link_count() {
 
     assert_eq!(prior_count, posterior_count);
 }
+
+#[test]
+fn get_links_for_objects_returns_generated_links() {
+    let connection = test_connection();
+    let star = &generate_root_with_stars(&connection).1[0];
+
+    &get_links_for_objects(&connection, vec![star.id])
+        .expect("Error getting links for the star")[0];
+}
+
+#[test]
+fn generated_links_have_their_star_as_destination() {
+    let connection = test_connection();
+    let stars = generate_root_with_stars(&connection).1;
+
+    for s in stars {
+        let links = get_links_for_objects(&connection, vec![s.id])
+            .expect("Error getting links for the star");
+        for l in links {
+            assert!(l.a_id == s.id || l.b_id == s.id);
+        }
+    }
+}
+
+#[test]
+fn fulfill_star_sector_future_delegates_links() {
+    let connection = test_connection();
+
+    let future_id = generate_root_with_futures(&connection).1[0].id;
+
+    let links_old = &get_links_for_objects(&connection, vec![future_id])
+        .expect("Error getting links for the future");
+
+    fulfill_star_sector_future(&connection, future_id);
+
+    for l in links_old {
+        assert!(l.a_id != future_id && l.b_id != future_id);
+    }
+}

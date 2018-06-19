@@ -227,6 +227,16 @@ pub fn get_star_sector_children_futures(
     StarSectorFuture::belonging_to(sector).load(conn)
 }
 
+pub fn get_links_for_objects(conn: &PgConnection, objects: Vec<i32>
+    ) -> Result<Vec<StarLink>, Error> {
+    use schema::star_links::dsl::*;
+    star_links
+        .filter(a_id.eq_any(objects.to_vec()))
+        .or_filter(b_id.eq_any(objects.to_vec()))
+        .load::<StarLink>(conn)
+
+}
+
 fn delete_links_for_objects(conn: &PgConnection, objects: Vec<i32>) -> Result<usize, Error> {
     use schema::star_links::dsl::*;
 
