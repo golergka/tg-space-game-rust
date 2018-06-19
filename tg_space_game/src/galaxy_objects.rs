@@ -173,7 +173,7 @@ fn fill_star_sector(
         let new_links = generate_links(
             &mut children_weighted.as_mut_slice(),
             links as usize,
-            true,
+            create_stars,
             rand::thread_rng(),
         );
 

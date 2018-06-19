@@ -158,4 +158,22 @@ mod tests {
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], NewStarLink::new(&item1, &item2));
     }
+
+    #[test]
+    fn generate_links_creates_non_unique_links() {
+        let rng = StepRng::new(0, 1);
+        let item = GalaxyObject {
+            id: 1,
+            obj_type: GalaxyObjectType::System
+        };
+
+        let mut elements = vec![
+            Weighted::<GalaxyObject>{
+                weight: 1,
+                item: item
+            }
+        ];
+        let result = generate_links(&mut elements, 10usize, false, rng);
+        assert_eq!(result.len(), 10);
+    }
 }
