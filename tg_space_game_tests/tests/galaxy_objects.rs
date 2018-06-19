@@ -224,7 +224,8 @@ fn fulfill_star_sector_future_delegates_links() {
     let links_old = &get_links_for_objects(&connection, vec![future_id])
         .expect("Error getting links for the future");
 
-    fulfill_star_sector_future(&connection, future_id);
+    fulfill_star_sector_future(&connection, future_id)
+        .expect("Error fulfilling star sector future");
 
     for l in links_old {
         assert!(l.a_id != future_id && l.b_id != future_id);

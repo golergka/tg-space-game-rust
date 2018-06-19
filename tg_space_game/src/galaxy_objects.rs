@@ -89,6 +89,7 @@ fn fill_star_sector(
         // Amount of links between stars inside this sector
         let links = stars * 4f32;
 
+        // We decide whether we create concrete stars or a sub-future
         let create_stars = sub_stars < 10.0;
 
         let child_amount = if create_stars {
@@ -97,23 +98,26 @@ fn fill_star_sector(
             sub_amount
         };
 
-        let new_star_galaxy_objects = (0..child_amount)
-            .map(|_| NewGalaxyObject {
-                obj_type: if create_stars {
-                        GalaxyObjectType::System 
-                    } else {
-                        GalaxyObjectType::SectorFuture
-                    }
-            })
-            .collect::<Vec<_>>();
+        // Create galaxy objects
+        let star_galaxy_objects: Vec<GalaxyObject> = {
+            let new_star_galaxy_objects = (0..child_amount)
+                .map(|_| NewGalaxyObject {
+                    obj_type: if create_stars {
+                            GalaxyObjectType::System 
+                        } else {
+                            GalaxyObjectType::SectorFuture
+                        }
+                })
+                .collect::<Vec<_>>();
 
-        use schema::galaxy_objects::dsl::*;
-        let star_galaxy_objects: Vec<GalaxyObject> = diesel::insert_into(galaxy_objects)
-            .values(&new_star_galaxy_objects)
-            .get_results(conn)?;
+            use schema::galaxy_objects::dsl::*;
+            diesel::insert_into(galaxy_objects)
+                .values(&new_star_galaxy_objects)
+                .get_results(conn)?
+        };
 
-        // Generate sub stars
-        if create_stars {
+        // Create children
+        let children = if create_stars {
             // Create stars themselves
             let new_stars = star_galaxy_objects
                 .iter()
@@ -124,38 +128,13 @@ fn fill_star_sector(
                 })
                 .collect::<Vec<_>>();
             use schema::star_systems::dsl::*;
-            let stars: Vec<StarSystem> = diesel::insert_into(star_systems)
+            diesel::insert_into(star_systems)
                 .values(&new_stars)
-                .get_results(conn)?;
-
-            // Generate links between stars
-            let weights = self::tools::exp_weights(stars.len());
-
-            let mut stars_weighed = stars
+                .get_results::<StarSystem>(conn)?
                 .iter()
-                .zip(weights)
-                .map(|pair: (&StarSystem, u32)| {
-                    let (star, weight) = pair;
-                    Weighted::<GalaxyObject> {
-                        weight: weight,
-                        item: GalaxyObject::from(star),
-                    }
-                })
-                .collect::<Vec<_>>();
-
-            let new_links = generate_links(
-                &mut stars_weighed.as_mut_slice(),
-                links as usize,
-                true,
-                rand::thread_rng(),
-            );
-            use schema::star_links::dsl::*;
-            diesel::insert_into(star_links)
-                .values(&new_links)
-                .execute(conn)?;
-        }
-        // Generate sub sector futures
-        else {
+                .map(GalaxyObject::from)
+                .collect::<Vec<GalaxyObject>>()
+        } else {
             use std::f32;
             let sub_radius = rad / (sub_amount as f32).cbrt();
 
@@ -170,37 +149,38 @@ fn fill_star_sector(
                 })
                 .collect::<Vec<_>>();
             use schema::star_sector_futures::dsl::*;
-            let futures: Vec<StarSectorFuture> = diesel::insert_into(star_sector_futures)
+            diesel::insert_into(star_sector_futures)
                 .values(&new_futures)
-                .get_results(conn)?;
-
-            // Generate links between futures
-            let weights = self::tools::exp_weights(futures.len());
-
-            let mut future_weighted = futures
+                .get_results::<StarSectorFuture>(conn)?
                 .iter()
-                .zip(weights)
-                .map(|pair: (&StarSectorFuture, u32)| {
-                    let (future, weight) = pair;
-                    Weighted::<GalaxyObject> {
-                        weight: weight,
-                        item: GalaxyObject::from(future)
-                    }
-                })
-                .collect::<Vec<_>>();
+                .map(GalaxyObject::from)
+                .collect::<Vec<GalaxyObject>>()
+        };
 
-            let new_links = generate_links(
-                &mut future_weighted.as_mut_slice(),
-                links as usize,
-                false,
-                rand::thread_rng()
-            );
+        // Generate links
+        let mut children_weighted = children
+            .iter()
+            .zip(self::tools::exp_weights(children.len()))
+            .map(|pair: (&GalaxyObject, u32)| {
+                let (child, weight) = pair;
+                Weighted::<GalaxyObject> {
+                    weight: weight,
+                    item: child.clone(),
+                }
+            })
+            .collect::<Vec<_>>();
 
-            use schema::star_links::dsl::*;
-            diesel::insert_into(star_links)
-                .values(&new_links)
-                .execute(conn)?;
-        }
+        let new_links = generate_links(
+            &mut children_weighted.as_mut_slice(),
+            links as usize,
+            true,
+            rand::thread_rng(),
+        );
+
+        use schema::star_links::dsl::*;
+        diesel::insert_into(star_links)
+            .values(&new_links)
+            .execute(conn)?;
 
         Ok(())
     })
