@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Queryable, Hash, PartialEq, Eq, Clone)]
+#[derive(Queryable, Hash, PartialEq, Eq, Clone, Debug)]
 pub struct GalaxyObject {
     pub id: i32,
     pub obj_type: GalaxyObjectType,

@@ -4,6 +4,9 @@ extern crate diesel;
 extern crate diesel_migrations;
 extern crate dotenv;
 extern crate rand;
+#[macro_use]
+extern crate log;
+extern crate env_logger;
 
 use diesel::pg::PgConnection;
 use diesel::prelude::*;

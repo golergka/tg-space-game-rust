@@ -95,6 +95,8 @@ pub fn generate_links<R: Rng>(
     mut rng: R,
 ) -> Vec<NewStarLink> 
 {
+    info!("Elements: {}", elements.len());
+
     let mut result: Vec<NewStarLink> = Vec::new();
     rng.shuffle(elements);
 
@@ -104,9 +106,21 @@ pub fn generate_links<R: Rng>(
         result.push(NewStarLink::new(&elements[i].item, &elements[i + 1].item));
     }
 
+    info!("Min links created: {}", min_links);
+    info!("Result with min links: {:?}", result);
     // Extra links
-    let max_links = elements.len() * (elements.len() - 1) / 2;
-    let mut links_left = cmp::max(link_amount, max_links) - min_links;
+    let mut links_left = if unique {
+        let max_links = elements.len() * (elements.len() - 1) / 2;
+        cmp::min(link_amount, max_links) - min_links
+    } else {
+        info!("Link amount: {}", link_amount);
+        match link_amount.checked_sub(cmp::max(min_links, 0)) {
+            Some(x) => x,
+            None => 0
+        }
+    };
+
+    info!("Links left: {}", links_left);
     let mut attempts = links_left * links_left;
 
     let wc = WeightedChoice::new(&mut elements);
@@ -114,14 +128,17 @@ pub fn generate_links<R: Rng>(
     while links_left > 0 && attempts > 0 {
         let side_a = wc.sample(&mut rng);
         let side_b = wc.sample(&mut rng);
-        if side_a != side_b {
-            let link = NewStarLink::new(&side_a, &side_b);
-            if !unique || !result.contains(&link) {
-                result.push(link);
-                links_left -= 1;
-            }
+        let link = NewStarLink::new(&side_a, &side_b);
+        info!("Link candidate: {:?}", link);
+
+        if !unique || (side_a != side_b && !result.contains(&link)) {
+            result.push(link);
+            links_left -= 1;
+            info!("Candidate suitable");
         }
+
         attempts -= 1;
+        info!("Attempts left: {}", attempts);
     }
 
     result
@@ -130,6 +147,7 @@ pub fn generate_links<R: Rng>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::super::env_logger;
     use rand::rngs::mock::StepRng;
 
     #[test]
@@ -161,6 +179,7 @@ mod tests {
 
     #[test]
     fn generate_links_creates_non_unique_links() {
+        let _ = env_logger::init();
         let rng = StepRng::new(0, 1);
         let item = GalaxyObject {
             id: 1,
